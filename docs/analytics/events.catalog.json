@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "events": [
+    {
+      "name": "season_selected",
+      "purpose": "Compreender seleção de temporadas na navegação analítica",
+      "properties": ["season_year", "entry_point"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "grand_prix_viewed",
+      "purpose": "Acompanhar visualização de etapas do campeonato",
+      "properties": ["season_year", "round_number", "circuit_id"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "driver_profile_viewed",
+      "purpose": "Medir engajamento em perfis de pilotos",
+      "properties": ["driver_slug", "season_context"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "team_profile_viewed",
+      "purpose": "Medir engajamento em perfis de construtores",
+      "properties": ["team_slug", "season_context"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "standings_filter_changed",
+      "purpose": "Avaliar uso de filtros nas tabelas de classificação",
+      "properties": ["season_year", "filter_type"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "driver_comparison_started",
+      "purpose": "Avaliar ativação da ferramenta de comparação de pilotos",
+      "properties": ["driver_a_slug", "driver_b_slug", "comparison_metric"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "simulation_completed",
+      "purpose": "Medir conclusão de cenários hipotéticos no simulador",
+      "properties": ["season_year", "scenario_type"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "story_opened",
+      "purpose": "Acompanhar início de leitura de histórias editoriais",
+      "properties": ["story_slug", "topic_category"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "story_chapter_viewed",
+      "purpose": "Medir progressão de leitura entre capítulos narrativos",
+      "properties": ["story_slug", "chapter_number"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "historical_event_explored",
+      "purpose": "Avaliar exploração contextual de marcos históricos",
+      "properties": ["story_slug", "event_year", "event_type"],
+      "consentCategory": "analytics"
+    },
+    {
+      "name": "story_source_opened",
+      "purpose": "Medir consulta a referências e fontes primárias",
+      "properties": ["story_slug", "source_type"],
+      "consentCategory": "analytics"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "f1atlas",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "verify": "node scripts/quality/run-all.mjs",
+    "verify:structure": "node scripts/quality/check-structure.mjs",
+    "verify:docs": "node scripts/quality/verify-integrity.mjs",
+    "verify:security": "node scripts/security/check-sensitive-files.mjs && node scripts/security/check-secrets.mjs && node scripts/security/check-symlinks.mjs && node scripts/security/verify-publication-scope.mjs && node scripts/security/validate-env.mjs && node scripts/security/verify-dependencies.mjs",
+    "verify:architecture": "node scripts/architecture/verify-boundaries.mjs",
+    "verify:seo": "node scripts/seo/validate-metadata.mjs && node scripts/seo/validate-canonical.mjs && node scripts/seo/validate-sitemap.mjs && node scripts/seo/validate-structured-data.mjs",
+    "verify:analytics": "node scripts/analytics/validate-events.mjs && node scripts/analytics/validate-tracking.mjs && node scripts/analytics/validate-privacy.mjs",
+    "agents:check": "node scripts/quality/check-agent-contracts.mjs",
+    "test:harness": "node --test scripts/tests/*.test.mjs",
+    "verify:local": "node .local/quality/verify-local.mjs",
+    "hooks:install": "node .local/git/install-hooks.mjs",
+    "hooks:verify": "node .local/git/install-hooks.mjs --verify",
+    "hooks:pre-commit": "node .local/git/hook-runner.mjs --hook=pre-commit --diagnostic",
+    "hooks:pre-push": "node .local/git/hook-runner.mjs --hook=pre-push --diagnostic"
+  }
+}
