@@ -128,6 +128,11 @@ export function runMutationTesting({
       // Aplica a mutação temporária
       fs.writeFileSync(targetFile, mutatedContent, 'utf8');
 
+      // Sanitiza o ambiente para evitar que execuções aninhadas no node:test sejam ignoradas
+      const cleanEnv = { ...process.env };
+      delete cleanEnv.NODE_TEST_CONTEXT;
+      delete cleanEnv.NODE_TEST_WORKER_ID;
+
       // Executa o teste contra o código mutado
       const testRun = spawnSync(
         process.execPath,
@@ -135,7 +140,8 @@ export function runMutationTesting({
         {
           cwd: workspaceRoot,
           encoding: 'utf8',
-          stdio: 'pipe'
+          stdio: 'pipe',
+          env: cleanEnv
         }
       );
 

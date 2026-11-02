@@ -87,9 +87,14 @@ export function runQualityGates({
 
   // Execução da suite de testes automatizados (harness + camada domain)
   console.log('\n>>> Testes automatizados (harness + domínio)');
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.NODE_TEST_CONTEXT;
+  delete cleanEnv.NODE_TEST_WORKER_ID;
+
   const testExecution = spawnSync(process.execPath, ['--test', 'scripts/tests/*.test.mjs', 'packages/domain/test/**/*.test.ts'], {
     cwd: workspaceRoot,
-    stdio: 'inherit'
+    stdio: 'inherit',
+    env: cleanEnv
   });
 
   const testStatus = (testExecution.status === 0) ? STATUS.PASS : STATUS.FAIL;

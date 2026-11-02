@@ -108,12 +108,18 @@ export function parseAndValidateCoverage(coverageOutput, thresholds = DEFAULT_TH
 export function runTestCoverage(workspaceRoot = PROJECT_ROOT, thresholds = DEFAULT_THRESHOLDS) {
   const testPattern = 'packages/domain/test/**/*.test.ts';
 
+  // Sanitiza o ambiente para evitar que execuções aninhadas no node:test sejam ignoradas
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.NODE_TEST_CONTEXT;
+  delete cleanEnv.NODE_TEST_WORKER_ID;
+
   const execution = spawnSync(
     process.execPath,
     ['--experimental-test-coverage', '--test', testPattern],
     {
       cwd: workspaceRoot,
-      encoding: 'utf8'
+      encoding: 'utf8',
+      env: cleanEnv
     }
   );
 
