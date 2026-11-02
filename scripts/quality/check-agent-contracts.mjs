@@ -21,7 +21,7 @@ import path from 'node:path';
 import { PROJECT_ROOT, isMain, report } from '../lib/workspace.mjs';
 
 /**
- * Relação dos 11 agentes especializados canônicos do F1Atlas.
+ * Relação dos 12 agentes especializados canônicos do F1Atlas.
  * @type {ReadonlyArray<string>}
  */
 export const EXPECTED_AGENTS = Object.freeze([
@@ -35,7 +35,8 @@ export const EXPECTED_AGENTS = Object.freeze([
   'documentation-engineer',
   'editorial-engineer',
   'seo-engineer',
-  'analytics-engineer'
+  'analytics-engineer',
+  'prisma-engineer'
 ]);
 
 /**

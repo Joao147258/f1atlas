@@ -32,6 +32,7 @@ export const QUALITY_GATE_STEPS = Object.freeze([
   { name: 'Variáveis de ambiente', script: 'scripts/security/validate-env.mjs' },
   { name: 'Dependências', script: 'scripts/security/verify-dependencies.mjs' },
   { name: 'Limites arquiteturais', script: 'scripts/architecture/verify-boundaries.mjs' },
+  { name: 'Persistência Prisma/MySQL', script: 'scripts/database/run-database-verify.mjs' },
   { name: 'Catálogo de analytics', script: 'scripts/analytics/validate-events.mjs' },
   { name: 'Contrato SEO de páginas', script: 'scripts/seo/validate-metadata.mjs' }
 ]);

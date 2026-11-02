@@ -17,7 +17,7 @@ Orquestrar, auditar e interpretar a execução mecânica dos quality gates do pr
 - Confirmar que os Git hooks estão ativos via `npm run hooks:verify` antes de propor commits ou pushes.
 
 ## Procedimento
-1. **Preparação:** Inspecionar os gates ativos no `package.json` (`verify`, `verify:structure`, `verify:docs`, `verify:security`, `verify:architecture`, `verify:seo`, `verify:analytics`, `verify:local`, `test:harness`, `hooks:verify`, `hooks:pre-commit`, `hooks:pre-push`).
+1. **Preparação:** Inspecionar os gates ativos no `package.json` (`verify`, `verify:structure`, `verify:docs`, `verify:security`, `verify:architecture`, `verify:seo`, `verify:analytics`, `db:validate`, `db:check-generated`, `db:check-version`, `db:migrate:check`, `db:verify`, `verify:local`, `test:harness`, `hooks:verify`, `hooks:pre-commit`, `hooks:pre-push`).
 2. **Investigação:** Executar os gates individualmente ou via orquestrador consolidado (`node scripts/quality/run-all.mjs`).
 3. **Decisão:** Avaliar os códigos de saída retornados:
    - Código `0` com `PASS`: gate executado e aprovado.

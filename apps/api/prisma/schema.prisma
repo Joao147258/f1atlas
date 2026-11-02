@@ -1,0 +1,983 @@
+// F1Atlas — Schema Canônico de Persistência
+// ORM: Prisma ORM 7.10.1
+// Banco: MySQL / MariaDB (compatível com Hostinger)
+// Especificações: docs/specs/engineering/SPEC-PERSIST-001.md, docs/specs/domain/
+// Decisões Arquiteturais: docs/architecture/adr/0002-prisma-mysql-persistence.md, docs/architecture/adr/0001-modular-monolith.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ==============================================================================
+// 1. INFRAESTRUTURA TÉCNICA E BASELINE
+// ==============================================================================
+
+/// Modelo técnico de infraestrutura para baseline de persistência, testes e health-checks.
+model InfrastructureHealthCheck {
+  id        String   @id @default(uuid())
+  component String   @db.VarChar(100)
+  status    String   @db.VarChar(50)
+  details   String?  @db.Text
+  checkedAt DateTime @default(now()) @db.DateTime(3)
+
+  @@index([component, checkedAt])
+  @@map("infrastructure_health_checks")
+}
+
+// ==============================================================================
+// 2. NÚCLEO DE IDENTIDADE ESPORTIVA E ORGANIZACIONAL
+// ==============================================================================
+
+/// Representa a identidade permanente de um piloto de automobilismo.
+/// A identidade não varia com troca de equipe, número temporário ou patrocinador.
+model Driver {
+  id              String    @id @default(uuid())
+  slug            String    @unique @db.VarChar(120)
+  firstName       String    @db.VarChar(100)
+  lastName        String    @db.VarChar(100)
+  fullName        String    @db.VarChar(200)
+  displayName     String    @db.VarChar(100)
+  permanentNumber Int?
+  code            String?   @db.VarChar(3)
+  birthDate       DateTime? @db.Date
+  birthPlace      String?   @db.VarChar(150)
+  nationality     String    @db.VarChar(100)
+  countryCode     String?   @db.VarChar(3)
+  biography       String?   @db.Text
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @db.DateTime(3)
+  updatedAt       DateTime  @updatedAt @db.DateTime(3)
+
+  contracts             SeasonDriverContract[]
+  sessionEntries        SessionEntry[]
+  driverStandingEntries DriverStandingEntry[]
+  storyLinks            StoryEntityLink[]
+  externalReferences    ExternalReference[]
+
+  @@index([lastName, firstName])
+  @@index([nationality])
+  @@map("drivers")
+}
+
+/// Representa a identidade histórica e organizacional de uma equipe de Fórmula 1.
+/// Preserva a continuidade histórica independentemente de alterações em nomes de patrocinadores.
+model Team {
+  id          String   @id @default(uuid())
+  slug        String   @unique @db.VarChar(120)
+  legalName   String   @db.VarChar(200)
+  commonName  String   @db.VarChar(100)
+  nationality String   @db.VarChar(100)
+  countryCode String?  @db.VarChar(3)
+  baseLocation String? @db.VarChar(150)
+  foundedYear Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  seasonEntrants             SeasonEntrant[]
+  constructorStandingEntries ConstructorStandingEntry[]
+  storyLinks                 StoryEntityLink[]
+  externalReferences         ExternalReference[]
+
+  @@index([commonName])
+  @@map("teams")
+}
+
+/// Representa a entidade técnica do construtor registrada perante a FIA.
+/// Distingue o binômio chassi-motor/fabricante da equipe corporativa.
+model Constructor {
+  id                 String   @id @default(uuid())
+  slug               String   @unique @db.VarChar(120)
+  name               String   @db.VarChar(150)
+  chassis            String?  @db.VarChar(100)
+  engineManufacturer String?  @db.VarChar(100)
+  nationality        String   @db.VarChar(100)
+  countryCode        String?  @db.VarChar(3)
+  createdAt          DateTime @default(now()) @db.DateTime(3)
+  updatedAt          DateTime @updatedAt @db.DateTime(3)
+
+  seasonEntrants             SeasonEntrant[]
+  constructorStandingEntries ConstructorStandingEntry[]
+
+  @@map("constructors")
+}
+
+/// Representa uma edição anual do Campeonato Mundial de Fórmula 1.
+model Season {
+  id           String       @id @default(uuid())
+  year         Int          @unique
+  officialName String       @db.VarChar(200)
+  startDate    DateTime?    @db.Date
+  endDate      DateTime?    @db.Date
+  status       SeasonStatus @default(PLANNED)
+  createdAt    DateTime     @default(now()) @db.DateTime(3)
+  updatedAt    DateTime     @updatedAt @db.DateTime(3)
+
+  entrants        SeasonEntrant[]
+  grandsPrix      GrandPrix[]
+  scoringRulesets ScoringRuleset[]
+  championships   Championship[]
+  stories         Story[]
+
+  @@index([status])
+  @@map("seasons")
+}
+
+/// Inscrição formal de uma equipe/construtor em uma temporada específica.
+/// Captura o nome comercial do ano, chassi e fornecedor de unidade de potência.
+model SeasonEntrant {
+  id             String   @id @default(uuid())
+  seasonId       String
+  teamId         String
+  constructorId  String?
+  commercialName String   @db.VarChar(250)
+  carDesignation String?  @db.VarChar(100)
+  engineSupplier String?  @db.VarChar(100)
+  teamPrincipal  String?  @db.VarChar(150)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+
+  season         Season                 @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  team           Team                   @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  constructor    Constructor?           @relation(fields: [constructorId], references: [id], onDelete: SetNull)
+  contracts      SeasonDriverContract[]
+  sessionEntries SessionEntry[]
+
+  @@unique([seasonId, teamId])
+  @@index([seasonId])
+  @@index([teamId])
+  @@map("season_entrants")
+}
+
+/// Vínculo contratual ou participação de um piloto por uma equipe em determinada temporada.
+/// Suporta pilotos titulares, reservas e substitutos com seus respectivos números.
+model SeasonDriverContract {
+  id              String     @id @default(uuid())
+  seasonEntrantId String
+  driverId        String
+  role            DriverRole @default(MAIN_DRIVER)
+  assignedNumber  Int
+  effectiveFrom   DateTime?  @db.Date
+  effectiveTo     DateTime?  @db.Date
+  createdAt       DateTime   @default(now()) @db.DateTime(3)
+  updatedAt       DateTime   @updatedAt @db.DateTime(3)
+
+  seasonEntrant SeasonEntrant @relation(fields: [seasonEntrantId], references: [id], onDelete: Restrict)
+  driver        Driver        @relation(fields: [driverId], references: [id], onDelete: Restrict)
+
+  @@index([seasonEntrantId])
+  @@index([driverId])
+  @@map("season_driver_contracts")
+}
+
+// ==============================================================================
+// 3. CALENDÁRIO, CIRCUITOS E TRAÇADOS
+// ==============================================================================
+
+/// Circuito permanente ou de rua onde são realizados Grandes Prêmios.
+model Circuit {
+  id          String   @id @default(uuid())
+  slug        String   @unique @db.VarChar(120)
+  name        String   @db.VarChar(150)
+  location    String   @db.VarChar(150)
+  country     String   @db.VarChar(100)
+  countryCode String   @db.VarChar(3)
+  latitude    Decimal? @db.Decimal(9, 6)
+  longitude   Decimal? @db.Decimal(9, 6)
+  timezone    String   @db.VarChar(60)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  layouts            CircuitLayout[]
+  grandsPrix         GrandPrix[]
+  externalReferences ExternalReference[]
+
+  @@index([country])
+  @@map("circuits")
+}
+
+/// Configuração física do traçado de um circuito em determinada era histórica.
+model CircuitLayout {
+  id            String   @id @default(uuid())
+  circuitId     String
+  name          String   @db.VarChar(120)
+  lengthMeters  Int
+  turnsCount    Int
+  validFromYear Int?
+  validToYear   Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.DateTime(3)
+  updatedAt     DateTime @updatedAt @db.DateTime(3)
+
+  circuit    Circuit     @relation(fields: [circuitId], references: [id], onDelete: Restrict)
+  grandsPrix GrandPrix[]
+
+  @@index([circuitId])
+  @@map("circuit_layouts")
+}
+
+/// Grande Prêmio oficial integrante do calendário de uma temporada.
+model GrandPrix {
+  id              String      @id @default(uuid())
+  seasonId        String
+  circuitId       String
+  circuitLayoutId String?
+  slug            String      @db.VarChar(150)
+  roundNumber     Int
+  officialName    String      @db.VarChar(250)
+  format          EventFormat @default(STANDARD)
+  startDate       DateTime    @db.Date
+  endDate         DateTime    @db.Date
+  scheduledLaps   Int?
+  status          EventStatus @default(SCHEDULED)
+  createdAt       DateTime    @default(now()) @db.DateTime(3)
+  updatedAt       DateTime    @updatedAt @db.DateTime(3)
+
+  season                Season                 @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  circuit               Circuit                @relation(fields: [circuitId], references: [id], onDelete: Restrict)
+  circuitLayout         CircuitLayout?         @relation(fields: [circuitLayoutId], references: [id], onDelete: SetNull)
+  sessions              Session[]
+  championshipStandings ChampionshipStanding[]
+  storyLinks            StoryEntityLink[]
+  externalReferences    ExternalReference[]
+
+  @@unique([seasonId, roundNumber])
+  @@unique([seasonId, slug])
+  @@index([seasonId])
+  @@index([circuitId])
+  @@map("grands_prix")
+}
+
+// ==============================================================================
+// 4. SESSÕES ESPORTIVAS E PARTICIPAÇÕES
+// ==============================================================================
+
+/// Sessão individual de pista dentro de um Grande Prêmio (Treinos, Quali, Sprint, Corrida).
+model Session {
+  id                 String        @id @default(uuid())
+  grandPrixId        String
+  type               SessionType
+  sessionCode        String        @db.VarChar(10)
+  scheduledStartTime DateTime      @db.DateTime(3)
+  scheduledEndTime   DateTime?     @db.DateTime(3)
+  actualStartTime    DateTime?     @db.DateTime(3)
+  actualEndTime      DateTime?     @db.DateTime(3)
+  status             SessionStatus @default(SCHEDULED)
+  isOfficial         Boolean       @default(false)
+  lapsCompleted      Int?
+  createdAt          DateTime      @default(now()) @db.DateTime(3)
+  updatedAt          DateTime      @updatedAt @db.DateTime(3)
+
+  grandPrix     GrandPrix         @relation(fields: [grandPrixId], references: [id], onDelete: Restrict)
+  entries       SessionEntry[]
+  startingGrids StartingGrid[]
+  penalties     Penalty[]
+  storyLinks    StoryEntityLink[]
+
+  @@unique([grandPrixId, type])
+  @@index([grandPrixId])
+  @@index([scheduledStartTime])
+  @@map("sessions")
+}
+
+/// Inscrição formal e participação de um piloto/equipe em determinada sessão.
+/// Separa quem estava inscrito de qual resultado foi obtido.
+model SessionEntry {
+  id              String      @id @default(uuid())
+  sessionId       String
+  driverId        String
+  seasonEntrantId String
+  carNumber       Int
+  isSubstitute    Boolean     @default(false)
+  status          EntryStatus @default(ENTERED)
+  createdAt       DateTime    @default(now()) @db.DateTime(3)
+  updatedAt       DateTime    @updatedAt @db.DateTime(3)
+
+  session          Session           @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  driver           Driver            @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  seasonEntrant    SeasonEntrant     @relation(fields: [seasonEntrantId], references: [id], onDelete: Restrict)
+  result           SessionResult?
+  qualifyingResult QualifyingResult?
+  startingGrid     StartingGrid?
+  lapTimes         LapTime[]
+  pitStops         PitStop[]
+  penalties        Penalty[]
+
+  @@unique([sessionId, driverId])
+  @@unique([sessionId, carNumber])
+  @@index([sessionId])
+  @@index([driverId])
+  @@index([seasonEntrantId])
+  @@map("session_entries")
+}
+
+// ==============================================================================
+// 5. RESULTADOS, CLASSIFICAÇÕES E GRIDS
+// ==============================================================================
+
+/// Resultado esportivo consolidado da participação em uma corrida ou sprint.
+model SessionResult {
+  id                   String             @id @default(uuid())
+  sessionEntryId       String             @unique
+  positionOrder        Int
+  classifiedPosition   Int?
+  gridPosition         Int?
+  finishStatus         FinishStatus       @default(FINISHED)
+  isClassified         Boolean            @default(true)
+  completedLaps        Int                @default(0)
+  totalTimeMillis      BigInt?
+  gapToLeaderMillis    BigInt?
+  gapToLeaderLaps      Int?
+  timeDifferenceRaw    String?            @db.VarChar(50)
+  fastestLapRank       Int?
+  fastestLapTimeMillis Int?
+  fastestLapNumber     Int?
+  hasFastestLapBonus   Boolean            @default(false)
+  pointsAwarded        Decimal            @default(0.00) @db.Decimal(5, 2)
+  homologationStatus   HomologationStatus @default(PROVISIONAL)
+  createdAt            DateTime           @default(now()) @db.DateTime(3)
+  updatedAt            DateTime           @updatedAt @db.DateTime(3)
+
+  sessionEntry       SessionEntry        @relation(fields: [sessionEntryId], references: [id], onDelete: Restrict)
+  revisions          ResultRevision[]
+  externalReferences ExternalReference[]
+
+  @@index([positionOrder])
+  @@index([classifiedPosition])
+  @@index([homologationStatus])
+  @@map("session_results")
+}
+
+/// Resultado detalhado de sessão de qualificação segmentada em Q1, Q2 e Q3.
+model QualifyingResult {
+  id             String           @id @default(uuid())
+  sessionEntryId String           @unique
+  finalPosition  Int
+  q1TimeMillis   Int?
+  q1TimeRaw      String?          @db.VarChar(20)
+  q2TimeMillis   Int?
+  q2TimeRaw      String?          @db.VarChar(20)
+  q3TimeMillis   Int?
+  q3TimeRaw      String?          @db.VarChar(20)
+  eliminatedIn   QualifyingPhase?
+  lapsCount      Int              @default(0)
+  createdAt      DateTime         @default(now()) @db.DateTime(3)
+  updatedAt      DateTime         @updatedAt @db.DateTime(3)
+
+  sessionEntry SessionEntry @relation(fields: [sessionEntryId], references: [id], onDelete: Restrict)
+
+  @@index([finalPosition])
+  @@map("qualifying_results")
+}
+
+/// Alinhamento oficial no grid de largada após aplicação de punições e decisões desportivas.
+model StartingGrid {
+  id                    String   @id @default(uuid())
+  sessionId             String
+  sessionEntryId        String   @unique
+  gridPosition          Int
+  qualifyingPosition    Int?
+  startsFromPitLane     Boolean  @default(false)
+  gridPenaltyPositions  Int      @default(0)
+  isDisqualified        Boolean  @default(false)
+  tyreCompound          String?  @db.VarChar(30)
+  reasonForAdjustment   String?  @db.VarChar(255)
+  createdAt             DateTime @default(now()) @db.DateTime(3)
+  updatedAt             DateTime @updatedAt @db.DateTime(3)
+
+  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  sessionEntry SessionEntry @relation(fields: [sessionEntryId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId, gridPosition])
+  @@map("starting_grids")
+}
+
+// ==============================================================================
+// 6. PENALIDADES E REVISÕES OFICIAIS
+// ==============================================================================
+
+/// Penalidade desportiva ou administrativa aplicada pelos comissários da FIA.
+model Penalty {
+  id                     String      @id @default(uuid())
+  sessionId              String
+  sessionEntryId         String?
+  type                   PenaltyType
+  penaltyValue           Int?
+  infringement           String      @db.VarChar(255)
+  reason                 String?     @db.Text
+  stewardsDocumentNumber String?     @db.VarChar(50)
+  servedDuringSession    Boolean     @default(false)
+  impactApplied          Boolean     @default(true)
+  issuedAt               DateTime?   @db.DateTime(3)
+  createdAt              DateTime    @default(now()) @db.DateTime(3)
+  updatedAt              DateTime    @updatedAt @db.DateTime(3)
+
+  session      Session       @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  sessionEntry SessionEntry? @relation(fields: [sessionEntryId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([sessionEntryId])
+  @@map("penalties")
+}
+
+/// Rastreabilidade de revisões retroativas de resultados pós-homologação oficial.
+model ResultRevision {
+  id                 String   @id @default(uuid())
+  sessionResultId    String
+  revisionNumber     Int
+  previousStatus     String   @db.VarChar(50)
+  newStatus          String   @db.VarChar(50)
+  previousPosition   Int?
+  newPosition        Int?
+  previousPoints     Decimal? @db.Decimal(5, 2)
+  newPoints          Decimal? @db.Decimal(5, 2)
+  reason             String   @db.Text
+  officialReference  String?  @db.VarChar(200)
+  effectiveAt        DateTime @db.DateTime(3)
+  createdAt          DateTime @default(now()) @db.DateTime(3)
+
+  sessionResult SessionResult @relation(fields: [sessionResultId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionResultId, revisionNumber])
+  @@index([sessionResultId])
+  @@map("result_revisions")
+}
+
+// ==============================================================================
+// 7. REGULAMENTOS E PONTUAÇÃO
+// ==============================================================================
+
+/// Conjunto de regras de pontuação regulamentar aplicáveis a uma temporada esportiva.
+model ScoringRuleset {
+  id                     String   @id @default(uuid())
+  seasonId               String
+  code                   String   @db.VarChar(50)
+  name                   String   @db.VarChar(150)
+  fastestLapBonusPoints  Decimal  @default(0.00) @db.Decimal(4, 2)
+  fastestLapRequiresTop10 Boolean  @default(true)
+  sprintPointsEnabled    Boolean  @default(true)
+  isHalfPointsSupported  Boolean  @default(true)
+  regulationsReference   String?  @db.VarChar(200)
+  createdAt              DateTime @default(now()) @db.DateTime(3)
+  updatedAt              DateTime @updatedAt @db.DateTime(3)
+
+  season    Season            @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  positions ScoringPosition[]
+
+  @@unique([seasonId, code])
+  @@index([seasonId])
+  @@map("scoring_rulesets")
+}
+
+/// Tabela de posições e pontuações atribuíveis conforme o regulamento e tipo de sessão.
+model ScoringPosition {
+  id               String             @id @default(uuid())
+  scoringRulesetId String
+  sessionType      ScoringSessionType
+  position         Int
+  points           Decimal            @db.Decimal(5, 2)
+  distanceCriteria DistanceCriteria   @default(FULL_DISTANCE)
+  createdAt        DateTime           @default(now()) @db.DateTime(3)
+  updatedAt        DateTime           @updatedAt @db.DateTime(3)
+
+  scoringRuleset ScoringRuleset @relation(fields: [scoringRulesetId], references: [id], onDelete: Cascade)
+
+  @@unique([scoringRulesetId, sessionType, position, distanceCriteria])
+  @@index([scoringRulesetId])
+  @@map("scoring_positions")
+}
+
+// ==============================================================================
+// 8. CAMPEONATOS E CLASSIFICAÇÕES
+// ==============================================================================
+
+/// Campeonato oficial (Mundial de Pilotos ou Mundial de Construtores).
+model Championship {
+  id           String             @id @default(uuid())
+  seasonId     String
+  type         ChampionshipType
+  officialName String             @db.VarChar(200)
+  status       ChampionshipStatus @default(IN_PROGRESS)
+  createdAt    DateTime           @default(now()) @db.DateTime(3)
+  updatedAt    DateTime           @updatedAt @db.DateTime(3)
+
+  season    Season                 @relation(fields: [seasonId], references: [id], onDelete: Restrict)
+  standings ChampionshipStanding[]
+
+  @@unique([seasonId, type])
+  @@index([seasonId])
+  @@map("championships")
+}
+
+/// Snapshot de classificação oficial, calculada ou simulada em determinado ponto do campeonato.
+model ChampionshipStanding {
+  id                 String       @id @default(uuid())
+  championshipId     String
+  grandPrixId        String
+  roundNumber        Int
+  snapshotType       SnapshotType @default(OFFICIAL_FIA)
+  scenarioIdentifier String?      @db.VarChar(100)
+  calculatedAt       DateTime     @db.DateTime(3)
+  createdAt          DateTime     @default(now()) @db.DateTime(3)
+  updatedAt          DateTime     @updatedAt @db.DateTime(3)
+
+  championship       Championship               @relation(fields: [championshipId], references: [id], onDelete: Restrict)
+  grandPrix          GrandPrix                  @relation(fields: [grandPrixId], references: [id], onDelete: Restrict)
+  driverEntries      DriverStandingEntry[]
+  constructorEntries ConstructorStandingEntry[]
+
+  @@unique([championshipId, grandPrixId, snapshotType, scenarioIdentifier])
+  @@index([championshipId])
+  @@index([grandPrixId])
+  @@map("championship_standings")
+}
+
+/// Entrada de classificação de um piloto em determinado snapshot de campeonato.
+model DriverStandingEntry {
+  id             String   @id @default(uuid())
+  standingId     String
+  driverId       String
+  position       Int
+  points         Decimal  @db.Decimal(6, 2)
+  winsCount      Int      @default(0)
+  podiumsCount   Int      @default(0)
+  tiebreakerRank Int?
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+
+  standing ChampionshipStanding @relation(fields: [standingId], references: [id], onDelete: Cascade)
+  driver   Driver               @relation(fields: [driverId], references: [id], onDelete: Restrict)
+
+  @@unique([standingId, driverId])
+  @@unique([standingId, position])
+  @@index([standingId])
+  @@index([driverId])
+  @@map("driver_standing_entries")
+}
+
+/// Entrada de classificação de um construtor/equipe em determinado snapshot de campeonato.
+model ConstructorStandingEntry {
+  id             String   @id @default(uuid())
+  standingId     String
+  teamId         String
+  constructorId  String?
+  position       Int
+  points         Decimal  @db.Decimal(6, 2)
+  winsCount      Int      @default(0)
+  podiumsCount   Int      @default(0)
+  tiebreakerRank Int?
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+
+  standing    ChampionshipStanding @relation(fields: [standingId], references: [id], onDelete: Cascade)
+  team        Team                 @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  constructor Constructor?         @relation(fields: [constructorId], references: [id], onDelete: SetNull)
+
+  @@unique([standingId, teamId])
+  @@unique([standingId, position])
+  @@index([standingId])
+  @@index([teamId])
+  @@map("constructor_standing_entries")
+}
+
+// ==============================================================================
+// 9. DESEMPENHO E TEMPOS DE VOLTA
+// ==============================================================================
+
+/// Registro de tempo por volta em uma corrida ou treino para análise de ritmo.
+model LapTime {
+  id             String   @id @default(uuid())
+  sessionEntryId String
+  lapNumber      Int
+  lapTimeMillis  Int?
+  lapTimeRaw     String?  @db.VarChar(20)
+  positionOnLap  Int?
+  sector1Millis  Int?
+  sector2Millis  Int?
+  sector3Millis  Int?
+  isPersonalBest Boolean  @default(false)
+  isSessionBest  Boolean  @default(false)
+  isValidLap     Boolean  @default(true)
+  pitStopOccurred Boolean @default(false)
+  tyreCompound   String?  @db.VarChar(30)
+  tyreAgeLaps    Int?
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+
+  sessionEntry SessionEntry @relation(fields: [sessionEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionEntryId, lapNumber])
+  @@index([sessionEntryId, lapNumber])
+  @@map("lap_times")
+}
+
+/// Registro de parada nos boxes durante uma sessão.
+model PitStop {
+  id              String   @id @default(uuid())
+  sessionEntryId  String
+  stopNumber      Int
+  lapNumber       Int
+  durationMillis  Int?
+  laneTimeMillis  Int?
+  durationRaw     String?  @db.VarChar(20)
+  createdAt       DateTime @default(now()) @db.DateTime(3)
+
+  sessionEntry SessionEntry @relation(fields: [sessionEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionEntryId, stopNumber])
+  @@index([sessionEntryId])
+  @@map("pit_stops")
+}
+
+// ==============================================================================
+// 10. PROVENIÊNCIA E INTEGRAÇÃO DE DADOS
+// ==============================================================================
+
+/// Fonte de dados externa autorizada para ingestão ou consulta histórica.
+model DataSource {
+  id                      String             @id @default(uuid())
+  code                    String             @unique @db.VarChar(50)
+  name                    String             @db.VarChar(150)
+  category                DataSourceCategory
+  referenceUrl            String?            @db.VarChar(255)
+  licenseType             String?            @db.VarChar(100)
+  termsSummary            String?            @db.Text
+  isAuthorizedForPublicUse Boolean            @default(false)
+  rateLimitInfo           String?            @db.VarChar(100)
+  createdAt               DateTime           @default(now()) @db.DateTime(3)
+  updatedAt               DateTime           @updatedAt @db.DateTime(3)
+
+  importRuns         ImportRun[]
+  provenanceRecords  RecordProvenance[]
+  externalReferences ExternalReference[]
+
+  @@map("data_sources")
+}
+
+/// Execução de pipeline de carga de dados com contadores de auditoria.
+model ImportRun {
+  id               String       @id @default(uuid())
+  dataSourceId     String
+  entityTarget     String       @db.VarChar(100)
+  status           ImportStatus @default(STARTED)
+  recordsProcessed Int          @default(0)
+  recordsInserted  Int          @default(0)
+  recordsUpdated   Int          @default(0)
+  recordsFailed    Int          @default(0)
+  errorMessage     String?      @db.Text
+  startedAt        DateTime     @db.DateTime(3)
+  completedAt      DateTime?    @db.DateTime(3)
+  metadata         Json?
+  createdAt        DateTime     @default(now()) @db.DateTime(3)
+
+  dataSource        DataSource         @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  provenanceRecords RecordProvenance[]
+
+  @@index([dataSourceId, startedAt])
+  @@map("import_runs")
+}
+
+/// Mapeamento de IDs externos de fornecedores para identidades canônicas do F1Atlas.
+model ExternalReference {
+  id              String   @id @default(uuid())
+  dataSourceId    String
+  externalEntity  String   @db.VarChar(50)
+  externalId      String   @db.VarChar(150)
+  driverId        String?
+  teamId          String?
+  circuitId       String?
+  grandPrixId     String?
+  sessionResultId String?
+  createdAt       DateTime @default(now()) @db.DateTime(3)
+  updatedAt       DateTime @updatedAt @db.DateTime(3)
+
+  dataSource    DataSource     @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  driver        Driver?        @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  team          Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  circuit       Circuit?       @relation(fields: [circuitId], references: [id], onDelete: SetNull)
+  grandPrix     GrandPrix?     @relation(fields: [grandPrixId], references: [id], onDelete: SetNull)
+  sessionResult SessionResult? @relation(fields: [sessionResultId], references: [id], onDelete: SetNull)
+
+  @@unique([dataSourceId, externalEntity, externalId])
+  @@index([dataSourceId])
+  @@index([driverId])
+  @@index([teamId])
+  @@index([circuitId])
+  @@index([grandPrixId])
+  @@map("external_references")
+}
+
+/// Rastreabilidade de proveniência e integridade de registros esportivos críticos.
+model RecordProvenance {
+  id              String          @id @default(uuid())
+  dataSourceId    String
+  importRunId     String?
+  recordType      String          @db.VarChar(100)
+  recordId        String          @db.VarChar(36)
+  confidenceLevel ConfidenceLevel @default(UNVERIFIED)
+  ingestedAt      DateTime        @default(now()) @db.DateTime(3)
+  verifiedAt      DateTime?       @db.DateTime(3)
+  verifiedBy      String?         @db.VarChar(100)
+  sourceVersion   String?         @db.VarChar(50)
+  checksum        String?         @db.VarChar(64)
+
+  dataSource DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  importRun  ImportRun? @relation(fields: [importRunId], references: [id], onDelete: SetNull)
+
+  @@index([recordType, recordId])
+  @@index([dataSourceId, ingestedAt])
+  @@map("record_provenance")
+}
+
+// ==============================================================================
+// 11. RACING STORIES — FUNDAÇÃO EDITORIAL
+// ==============================================================================
+
+/// História autoral editorial contextualizada com dados esportivos.
+model Story {
+  id                 String          @id @default(uuid())
+  slug               String          @unique @db.VarChar(150)
+  title              String          @db.VarChar(200)
+  subtitle           String?         @db.VarChar(255)
+  summary            String          @db.Text
+  status             EditorialStatus @default(DRAFT)
+  heroImageUrl       String?         @db.VarChar(255)
+  heroImageAlt       String?         @db.VarChar(255)
+  primarySeasonId    String?
+  publishedAt        DateTime?       @db.DateTime(3)
+  authorName         String          @db.VarChar(100)
+  readingTimeMinutes Int             @default(5)
+  createdAt          DateTime        @default(now()) @db.DateTime(3)
+  updatedAt          DateTime        @updatedAt @db.DateTime(3)
+
+  primarySeason Season?           @relation(fields: [primarySeasonId], references: [id], onDelete: SetNull)
+  chapters      StoryChapter[]
+  references    StoryReference[]
+  entityLinks   StoryEntityLink[]
+
+  @@index([status])
+  @@index([publishedAt])
+  @@map("stories")
+}
+
+/// Capítulo estruturado de uma história editorial.
+model StoryChapter {
+  id             String   @id @default(uuid())
+  storyId        String
+  orderIndex     Int
+  title          String   @db.VarChar(150)
+  content        String?  @db.LongText
+  contentFileRef String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @db.DateTime(3)
+  updatedAt      DateTime @updatedAt @db.DateTime(3)
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, orderIndex])
+  @@index([storyId])
+  @@map("story_chapters")
+}
+
+/// Referência bibliográfica ou fonte documental que fundamenta uma história.
+model StoryReference {
+  id              String        @id @default(uuid())
+  storyId         String
+  title           String        @db.VarChar(255)
+  sourceName      String        @db.VarChar(150)
+  url             String?       @db.VarChar(255)
+  publicationDate DateTime?     @db.Date
+  referenceType   ReferenceType @default(JOURNALISM_ARTICLE)
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now()) @db.DateTime(3)
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+  @@map("story_references")
+}
+
+/// Vínculo contextual bidirecional entre histórias e entidades esportivas.
+model StoryEntityLink {
+  id          String   @id @default(uuid())
+  storyId     String
+  driverId    String?
+  teamId      String?
+  grandPrixId String?
+  sessionId   String?
+  role        String?  @db.VarChar(50)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+
+  story     Story      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  driver    Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  team      Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  grandPrix GrandPrix? @relation(fields: [grandPrixId], references: [id], onDelete: SetNull)
+  session   Session?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([storyId])
+  @@index([driverId])
+  @@index([teamId])
+  @@index([grandPrixId])
+  @@index([sessionId])
+  @@map("story_entity_links")
+}
+
+// ==============================================================================
+// 12. ENUMS CANÔNICOS DE DOMÍNIO E INFRAESTRUTURA
+// ==============================================================================
+
+enum SeasonStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DriverRole {
+  MAIN_DRIVER
+  RESERVE_DRIVER
+  TEST_DRIVER
+  REPLACEMENT
+}
+
+enum EventFormat {
+  STANDARD
+  SPRINT_WEEKEND
+  SPRINT_QUALIFYING_FORMAT
+}
+
+enum EventStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+enum SessionType {
+  PRACTICE_1
+  PRACTICE_2
+  PRACTICE_3
+  QUALIFYING
+  SPRINT_SHOOTOUT
+  SPRINT
+  RACE
+}
+
+enum SessionStatus {
+  SCHEDULED
+  LIVE
+  SUSPENDED
+  COMPLETED
+  CANCELLED
+}
+
+enum EntryStatus {
+  ENTERED
+  DID_NOT_PARTICIPATE
+  WITHDRAWN
+}
+
+enum FinishStatus {
+  FINISHED
+  LAPPED
+  ACCIDENT
+  COLLISION
+  MECHANICAL
+  RETIRED
+  DISQUALIFIED
+  DID_NOT_START
+  DID_NOT_QUALIFY
+}
+
+enum HomologationStatus {
+  PROVISIONAL
+  UNDER_INVESTIGATION
+  OFFICIAL
+  REVISED
+}
+
+enum QualifyingPhase {
+  Q1
+  Q2
+  Q3
+}
+
+enum PenaltyType {
+  TIME_PENALTY_SECONDS
+  DRIVE_THROUGH
+  STOP_AND_GO
+  GRID_DROP
+  DISQUALIFICATION
+  FINE
+  REPRIMAND
+  PENALTY_POINTS
+}
+
+enum ScoringSessionType {
+  RACE
+  SPRINT
+}
+
+enum DistanceCriteria {
+  FULL_DISTANCE
+  REDUCED_75_PERCENT
+  REDUCED_50_PERCENT
+  REDUCED_25_PERCENT
+}
+
+enum ChampionshipType {
+  DRIVERS
+  CONSTRUCTORS
+}
+
+enum ChampionshipStatus {
+  IN_PROGRESS
+  DECIDED
+  OFFICIAL
+}
+
+enum SnapshotType {
+  OFFICIAL_FIA
+  CALCULATED
+  SIMULATED
+}
+
+enum DataSourceCategory {
+  OFFICIAL_GOVERNING_BODY
+  PUBLIC_API
+  HISTORICAL_DATASET
+  MANUAL_EDITORIAL
+}
+
+enum ImportStatus {
+  STARTED
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum ConfidenceLevel {
+  UNVERIFIED
+  DERIVED
+  COMMUNITY_CHECKED
+  OFFICIAL_CERTIFIED
+}
+
+enum EditorialStatus {
+  DRAFT
+  IN_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReferenceType {
+  OFFICIAL_DOCUMENT
+  BOOK
+  JOURNALISM_ARTICLE
+  INTERVIEW
+  HISTORICAL_VIDEO
+}

@@ -17,7 +17,7 @@ Avaliar a organização estrutural do projeto, garantindo isolamento do domínio
 ## Procedimento
 1. **Preparação:** Mapear a direção de dependências pretendida: `Presentation/Infrastructure → Application → Domain`.
 2. **Investigação:**
-   - Inspecionar se `packages/domain` ou entidades contêm imports de `@nestjs/`, `next/`, `react/`, `@prisma/client`, `drizzle-orm` ou bibliotecas HTTP.
+   - Inspecionar se `packages/domain` ou entidades contêm imports de `@nestjs/`, `next/`, `react/`, `@prisma/`, caminhos de código gerado (`generated/prisma`), `drizzle-orm` ou bibliotecas HTTP.
    - Verificar se módulos acessam dados internos de outros módulos sem interfaces ou contratos declarados.
 3. **Decisão:** Identificar se uma nova exigência requer refatoração de limites ou justificativa em ADR específico.
 4. **Execução:** Executar o verificador estático de dependências de arquitetura (`node scripts/architecture/verify-boundaries.mjs`).

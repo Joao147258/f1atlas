@@ -27,8 +27,8 @@ function put(root, file, body) {
   fs.writeFileSync(p, body);
 }
 
-test('agentes: 11 perfis canônicos válidos em .gemini/agents', () => {
-  assert.equal(EXPECTED_AGENTS.length, 11);
+test('agentes: 12 perfis canônicos válidos em .gemini/agents', () => {
+  assert.equal(EXPECTED_AGENTS.length, 12);
   assert.deepEqual(checkAgentContracts(), []);
 });
 

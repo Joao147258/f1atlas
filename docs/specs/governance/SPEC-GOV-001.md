@@ -9,7 +9,7 @@ Assegurar que todos os agentes especializados do F1Atlas possuam papéis, respon
 
 ## Escopo e regras
 
-- **Fonte canônica única:** Os 11 agentes especializados residem exclusivamente em `.gemini/agents/`, eliminando a necessidade de mecanismos de espelhamento ou cópias concorrentes.
+- **Fonte canônica única:** Os 12 agentes especializados residem exclusivamente em `.gemini/agents/`, eliminando a necessidade de mecanismos de espelhamento ou cópias concorrentes.
 - **Formato e Metadados:** Cada agente é definido em arquivo Markdown individual com frontmatter YAML válido contendo:
   - `name`: identificador único em kebab-case correspondendo exatamente ao nome do arquivo.
   - `description`: descrição rica e contextualizada com no mínimo 30 caracteres para descoberta precisa.
@@ -26,7 +26,7 @@ Assegurar que todos os agentes especializados do F1Atlas possuam papéis, respon
 
 ## Critérios de aceitação
 
-1. Exatamente 11 agentes canônicos definidos em `.gemini/agents/` (`developer`, `backend-engineer`, `frontend-engineer`, `test-engineer`, `code-reviewer`, `script-developer`, `security-auditor`, `documentation-engineer`, `editorial-engineer`, `seo-engineer`, `analytics-engineer`).
+1. Exatamente 12 agentes canônicos definidos em `.gemini/agents/` (`developer`, `backend-engineer`, `frontend-engineer`, `test-engineer`, `code-reviewer`, `script-developer`, `security-auditor`, `documentation-engineer`, `editorial-engineer`, `seo-engineer`, `analytics-engineer`, `prisma-engineer`).
 2. Validação determinística unânime via `node scripts/quality/check-agent-contracts.mjs` (ou `npm run agents:check`).
 3. Detecção e reprovação imediata caso o diretório legado `.agents/agents/` seja recriado.
 4. Reprovação caso haja `name` divergente do nome do arquivo, frontmatter inválido, ausência de seções obrigatórias ou referência a skill inexistente.

@@ -121,7 +121,7 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 
 | Caminho | Responsabilidade |
 |---|---|
-| `.gemini/agents/` | Fonte canônica única dos 11 agentes especializados. |
+| `.gemini/agents/` | Fonte canônica única dos 12 agentes especializados. |
 | `.agents/skills/<nome>/SKILL.md` | Skills de capacidades reutilizáveis, com recursos opcionais. |
 | `.agents/templates/` | Modelos para agentes, skills, SPECs e ADRs. |
 | `docs/product/`, `docs/specs/` | Visão, roadmap, requisitos e critérios de aceitação. |
@@ -129,7 +129,7 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 | `scripts/` | Verificações portáveis, testadas e utilizáveis em clone limpo/CI. |
 | `.github/` | Revisão e integração contínua, conforme o estado real do repositório. |
 
-Agentes previstos: **Developer, Backend Engineer, Frontend Engineer, Test Engineer, Code Reviewer, Script Developer, Security Auditor, Documentation Engineer, Editorial Engineer, SEO Engineer e Analytics Engineer**.
+Agentes previstos: **Developer, Backend Engineer, Frontend Engineer, Test Engineer, Code Reviewer, Script Developer, Security Auditor, Documentation Engineer, Editorial Engineer, SEO Engineer, Analytics Engineer e Prisma Engineer**.
 
 Cada agente tem **uma responsabilidade e limites**; cada skill define **um procedimento**; cada script executa **uma operação verificável**. Delegação e decisões de ferramenta cabem ao executor coordenador, respeitando as permissões efetivas. Nenhum agente pode declarar aprovação de sua própria entrega sem evidências dos gates pertinentes.
 

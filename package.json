@@ -6,6 +6,10 @@
   "engines": {
     "node": ">=20"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "verify": "node scripts/quality/run-all.mjs",
     "verify:structure": "node scripts/quality/check-structure.mjs",
@@ -14,6 +18,15 @@
     "verify:architecture": "node scripts/architecture/verify-boundaries.mjs",
     "verify:seo": "node scripts/seo/validate-metadata.mjs && node scripts/seo/validate-canonical.mjs && node scripts/seo/validate-sitemap.mjs && node scripts/seo/validate-structured-data.mjs",
     "verify:analytics": "node scripts/analytics/validate-events.mjs && node scripts/analytics/validate-tracking.mjs && node scripts/analytics/validate-privacy.mjs",
+    "db:validate": "node scripts/database/validate-schema.mjs",
+    "db:generate": "npm run prisma:generate --workspace=@f1atlas/api",
+    "db:check-generated": "node scripts/database/check-generated-client.mjs",
+    "db:check-version": "node scripts/database/check-prisma-version.mjs",
+    "db:migrate:check": "node scripts/database/check-migrations.mjs",
+    "db:verify": "node scripts/database/run-database-verify.mjs",
+    "build:api": "npm run build --workspace=@f1atlas/api",
+    "typecheck:api": "npm run typecheck --workspace=@f1atlas/api",
+    "test:api": "npm run test --workspace=@f1atlas/api",
     "agents:check": "node scripts/quality/check-agent-contracts.mjs",
     "test:harness": "node --test scripts/tests/*.test.mjs",
     "verify:local": "node .local/quality/verify-local.mjs",

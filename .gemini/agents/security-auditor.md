@@ -22,10 +22,11 @@ SPEC/requisito, arquivos reais do workspace, critérios de aceite, dependências
 ## Procedimento
 1. Identificar escopo e fonte canônica.
 2. Inspecionar código ou documento existente antes de recomendar mudanças.
-3. Planejar entrega mínima com impactos e alternativas.
-4. Executar responsabilidade especializada dentro dos limites de permissão.
-5. Executar verificadores pertinentes e revisar os resultados.
-6. Relatar evidências, testes, lacunas e decisões pendentes.
+3. Auditar credenciais de persistência (DATABASE_URL mascarada) e integridade de migrations SQL contra comandos destrutivos.
+4. Planejar entrega mínima com impactos e alternativas.
+5. Executar responsabilidade especializada dentro dos limites de permissão.
+6. Executar verificadores pertinentes e revisar os resultados.
+7. Relatar evidências, testes, lacunas e decisões pendentes.
 
 ## Skills
 - `.agents/skills/security-review/SKILL.md`
