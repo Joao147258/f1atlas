@@ -32,6 +32,10 @@ export const QUALITY_GATE_STEPS = Object.freeze([
   { name: 'Variáveis de ambiente', script: 'scripts/security/validate-env.mjs' },
   { name: 'Dependências', script: 'scripts/security/verify-dependencies.mjs' },
   { name: 'Limites arquiteturais', script: 'scripts/architecture/verify-boundaries.mjs' },
+  { name: 'Arquitetura viva (current-state)', script: 'scripts/architecture/verify-current-state.mjs' },
+  { name: 'Qualidade das suítes de testes', script: 'scripts/quality/verify-test-quality.mjs' },
+  { name: 'Cobertura de código do domínio', script: 'scripts/quality/verify-test-coverage.mjs' },
+  { name: 'Eficácia de mutação de testes', script: 'scripts/quality/verify-mutation-quality.mjs' },
   { name: 'Persistência Prisma/MySQL', script: 'scripts/database/run-database-verify.mjs' },
   { name: 'Catálogo de analytics', script: 'scripts/analytics/validate-events.mjs' },
   { name: 'Contrato SEO de páginas', script: 'scripts/seo/validate-metadata.mjs' }
@@ -81,9 +85,9 @@ export function runQualityGates({
     });
   }
 
-  // Execução da suite de testes automatizados do harness
-  console.log('\n>>> Testes do harness');
-  const testExecution = spawnSync(process.execPath, ['--test', 'scripts/tests/*.test.mjs'], {
+  // Execução da suite de testes automatizados (harness + camada domain)
+  console.log('\n>>> Testes automatizados (harness + domínio)');
+  const testExecution = spawnSync(process.execPath, ['--test', 'scripts/tests/*.test.mjs', 'packages/domain/test/**/*.test.ts'], {
     cwd: workspaceRoot,
     stdio: 'inherit'
   });
@@ -94,8 +98,8 @@ export function runQualityGates({
   }
 
   executionResults.push({
-    name: 'Testes automatizados do harness',
-    script: 'scripts/tests/*.test.mjs',
+    name: 'Testes automatizados (harness + domínio)',
+    script: 'scripts/tests/*.test.mjs, packages/domain/test/**/*.test.ts',
     status: testStatus
   });
 

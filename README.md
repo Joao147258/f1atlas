@@ -234,29 +234,47 @@ A presença de documentação ou diretórios reservados não implica que essas c
 
 ## 6. Estrutura do repositório
 
-A organização separa produto, arquitetura, governança, automação e aplicações.
+A organização do F1Atlas separa produto, arquitetura, governança, automação e aplicações em um monorepositório governado:
 
 | Diretório ou arquivo | Responsabilidade |
 | --- | --- |
 | `README.md` | Apresentação e ponto de entrada do projeto |
 | `AGENTS.md` | Regras públicas de engenharia e governança |
-| `ARCHITECTURE.md` | Diretrizes e decisões arquiteturais |
+| `ARCHITECTURE.md` | Diretrizes e decisões arquiteturais gerais |
 | `DESIGN.md` | Identidade e experiência do produto |
 | `.gemini/agents/` | Agentes especializados |
 | `.agents/skills/` | Skills e procedimentos reutilizáveis |
 | `.agents/templates/` | Templates de governança |
 | `docs/product/` | Visão, escopo e roadmap |
+| `docs/domain/` | Documentação arquitetural canônica da camada Domain e acompanhamento de status |
 | `docs/specs/` | Especificações e critérios de aceitação |
 | `docs/development/` | Políticas normativas de engenharia |
-| `docs/architecture/` | Modelagem, integrações e decisões arquiteturais |
+| `docs/architecture/` | Modelagem, integrações e decisões arquiteturais (ADRs) |
 | `docs/design/` | Diretrizes complementares de design |
 | `docs/analytics/` | Catálogo e contratos de eventos |
 | `docs/seo/` | Diretrizes de SEO |
 | `docs/runbooks/` | Procedimentos operacionais documentados |
 | `scripts/` | Scripts públicos de validação e automação |
-| `apps/` | Aplicações do produto |
-| `packages/` | Pacotes compartilhados |
+| `apps/` | Aplicações executáveis do produto (`apps/api` para backend NestJS, `apps/web` para frontend Next.js) |
+| `packages/` | Pacotes compartilhados (`packages/domain` para regras esportivas puras, `packages/contracts` para contratos) |
 | `.github/workflows/` | Integração contínua |
+
+### 6.1. Organização do Monorepositório e Papel de `packages/domain`
+
+O F1Atlas adota uma separação estrutural estrita entre aplicações executáveis e o núcleo de regras esportivas:
+
+- **`apps/api` (Backend NestJS):** Hospeda controladores HTTP, orquestração de casos de uso da aplicação e adaptadores de infraestrutura (Prisma/MySQL).
+- **`apps/web` (Frontend Next.js):** Hospeda páginas públicas, componentes React e a interface visual *Precision Motorsport Editorial*.
+- **`packages/contracts`:** Centraliza DTOs de comunicação, schemas de validação e catálogos analíticos compartilhados.
+- **`packages/domain`:** Encapsula soberanamente as **regras esportivas do automobilismo**, entidades puras, invariantes da FIA, cálculo determinístico de pontuação e simulações, com **zero dependências de frameworks externos ou de banco de dados**.
+
+### 6.2. Referências de Arquitetura do Domínio e Acompanhamento
+
+Antes de implementar ou auditar qualquer funcionalidade esportiva, consulte a documentação canônica dedicada:
+
+- **Visão Geral e Módulos do Domínio:** `docs/domain/README.md`
+- **Painel Central de Acompanhamento e Evidências:** `docs/domain/development-status.md`
+- **Justificativa da Separação Física do Domínio:** `docs/domain/architectural-separation.md` (e ADR-0003 em `docs/architecture/adr/0003-domain-package-separation.md`)
 
 A estrutura poderá evoluir conforme decisões arquiteturais aprovadas.
 

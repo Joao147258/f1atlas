@@ -105,6 +105,8 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 | Fonte | O que determina |
 |---|---|
 | `AGENTS.md` | Invariantes globais públicos, limites comuns e fluxo mínimo de trabalho. |
+| `docs/domain/` | Arquitetura canônica da camada Domain, regras de negócio esportivas e acompanhamento de status. |
+| `docs/architecture/current-state.md` | Retrato vivo canônico da arquitetura efetivamente existente, limites modulares e dependências ativas. |
 | `docs/specs/` | Requisitos e critérios verificáveis da funcionalidade ou componente. |
 | `docs/development/` | Políticas normativas de agentes, skills, scripts, documentação, segurança, tecnologia e qualidade. |
 | `ARCHITECTURE.md` | Características arquiteturais, limites e direção técnica. |
@@ -112,6 +114,19 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 | `docs/architecture/adr/` | Decisões arquiteturais **aprovadas**, alternativas e trade-offs. |
 | `.gemini/agents/` e `.agents/skills/` | Contratos de especialistas e procedimentos reutilizáveis. |
 | Código, testes e configurações existentes | Evidência do estado implementado, não fonte para justificar automaticamente desvios. |
+
+### Hierarquia das fontes de informação
+
+| Fonte | Responsabilidade |
+|---|---|
+| **Documentação arquitetural (`docs/domain/`, `ARCHITECTURE.md`, `current-state.md`)** | Descrever a intenção, as decisões, os limites esperados e o estado arquitetural real. |
+| **Código-fonte (`packages/domain/`, `apps/`)** | Representar o comportamento efetivamente implementado no repositório. |
+| **Testes automatizados (`test:harness`, testes unitários)** | Verificar propriedades, invariantes e comportamentos definidos. |
+| **Registros de decisão (`docs/architecture/adr/`)** | Explicar por que determinada solução arquitetural foi escolhida. |
+| **Documentação de status (`docs/domain/development-status.md`)** | Informar o progresso real e as evidências de conclusão por componente. |
+| **Issues e pull requests** | Rastrear mudanças e sua execução, quando utilizados. |
+
+Nenhuma dessas fontes substitui completamente as outras. Quando documentação, código e testes divergirem, a divergência deve ser tratada como inconsistência a investigar, nunca como autorização para alterar silenciosamente uma das partes.
 
 **Tratamento de conflitos:** instruções superiores do ambiente e solicitações autorizadas continuam prevalecendo. Dentro da documentação do projeto, não assumir uma hierarquia cega entre SPEC, política e ADR quando tratem de assuntos diferentes. Verificar **escopo, status, vigência e aprovação**; se houver contradição material, registrar, interromper a decisão afetada e encaminhar a reconciliação. Um ADR `proposed` não aprova tecnologia. O código divergente não legitima uma violação documental.
 
@@ -125,6 +140,7 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 | `.agents/skills/<nome>/SKILL.md` | Skills de capacidades reutilizáveis, com recursos opcionais. |
 | `.agents/templates/` | Modelos para agentes, skills, SPECs e ADRs. |
 | `docs/product/`, `docs/specs/` | Visão, roadmap, requisitos e critérios de aceitação. |
+| `docs/domain/` | Documentação arquitetural canônica do domínio esportivo e status de implementação. |
 | `docs/development/`, `docs/architecture/` | Políticas, modelo, decisões e contratos arquiteturais. |
 | `scripts/` | Verificações portáveis, testadas e utilizáveis em clone limpo/CI. |
 | `.github/` | Revisão e integração contínua, conforme o estado real do repositório. |
@@ -135,38 +151,55 @@ Cada agente tem **uma responsabilidade e limites**; cada skill define **um proce
 
 Contratos detalhados de agentes e skills: `docs/specs/governance/` e `docs/development/`. Validação de sincronização e testes comportamentais devem ser empregados quando implementados e aplicáveis; um teste de formato não comprova competência operacional.
 
-## 9. Processo de trabalho comum
+## 9. Processo de trabalho comum (Fluxo em 6 etapas)
 
-### 9.1. Antes de alterar
+O desenvolvimento de componentes, especialmente na camada Domain (`packages/domain`), obedece a um ciclo disciplinado em 6 etapas:
 
-1. Confirmar a raiz e o estado real do repositório, incluindo alterações preexistentes.
-2. Identificar objetivo, escopo autorizado, SPEC, critérios de aceite e políticas relevantes.
-3. Investigar comportamento existente, dependências, riscos e fontes dos dados.
-4. Distinguir fato, hipótese, decisão pendente e item ainda não implementado.
-5. Definir a menor entrega verificável, com testes e estratégia de reversão quando necessária.
+### 9.1. Etapa 1 — Compreensão
+1. Consultar as instruções de governança, o retrato arquitetural vivo em `docs/architecture/current-state.md` e a documentação do módulo em `docs/domain/<modulo>.md`.
+2. Identificar responsabilidades, conceitos e regras do componente a alterar.
+3. Ler integralmente os comentários existentes no arquivo TypeScript correspondente.
+4. Consultar decisões arquiteturais aprovadas em `docs/architecture/adr/`.
+5. Examinar o código e testes relacionados; identificar dúvidas, invariantes e pendências.
+6. Não iniciar a implementação sem compreender o comportamento esperado.
 
-### 9.2. Durante a implementação
+### 9.2. Etapa 2 — Planejamento
+1. Definir o comportamento específico a implementar.
+2. Identificar entradas, saídas, tipos e invariantes de negócio.
+3. Verificar dependências entre componentes e respeito a limites de pacote.
+4. Identificar os testes necessários e cenários de borda.
+5. Se houver decisão arquitetural relevante ainda não tomada, registrá-la e resolvê-la antes de assumir código definitivo.
 
-1. Preservar limites arquiteturais e invariantes do domínio.
-2. Implementar primeiro o comportamento especificado, não abstrações motivadas por antecipação.
-3. Reutilizar contratos, skills e scripts validados quando pertinentes.
-4. Tratar erros explicitamente; não ocultar falhas, desativar verificações ou mudar critérios para obter aprovação.
-5. Atualizar testes e documentação relacionados na mesma mudança.
-6. Registrar ADR quando uma decisão arquitetural relevante exigir justificativa durável.
+### 9.3. Etapa 3 — Implementação
+1. Preservar rigorosamente os limites arquiteturais (sem frameworks web ou ORMs em `packages/domain`).
+2. Implementar somente o escopo autorizado, sem antecipar abstrações genéricas.
+3. Posicionar as implementações imediatamente abaixo dos comentários JSDoc correspondentes.
+4. Revisar os comentários para refletir o comportamento real implementado.
+5. Tratar erros explicitamente; não ocultar falhas nem silenciar exceções.
 
-### 9.3. Antes de concluir
+### 9.4. Etapa 4 — Validação
+1. Executar testes específicos da mudança e testes de regressão existentes.
+2. Verificar se regras esportivas e invariantes continuam preservadas.
+3. Executar os quality gates aplicáveis (`npm run verify`, `verify:architecture`, etc.).
+4. Não tratar uma implementação como validada apenas porque compila.
 
-1. Executar testes específicos da mudança e quality gates aplicáveis.
-2. Analisar o diff e confirmar ausência de arquivos privados, segredos e alterações fora do escopo.
-3. Verificar critérios de aceitação e documentar exceções ou dependências.
-4. Relatar o que foi efetivamente alterado e **o que não foi verificado**.
+### 9.5. Etapa 5 — Atualização documental
+1. Atualizar comentários do componente no código-fonte.
+2. Atualizar o documento arquitetural do módulo em `docs/domain/`, caso regras ou relacionamentos tenham mudado.
+3. Atualizar o painel central de status em `docs/domain/development-status.md` com evidências e comandos executados.
+4. Atualizar obrigatoriamente `docs/architecture/current-state.md` sempre que a atividade criar ou alterar módulos, aplicações, dependências, fronteiras arquiteturais, tecnologias ou mecanismos de persistência e qualidade.
+5. Registrar novo ADR se houver decisão arquitetural de impacto duradouro.
 
-Uma execução pode ser **COMPLETED, PARTIAL, BLOCKED ou FAILED**. Não declarar `COMPLETED` quando um critério obrigatório permanece sem verificação.
+### 9.6. Etapa 6 — Revisão e entrega
+1. Analisar o diff completo; confirmar ausência de arquivos privados, segredos ou alterações fora de escopo.
+2. Verificar se `docs/architecture/current-state.md` e os testes continuam em sincronia via `npm run verify:architecture`.
+3. Emitir relatório de entrega classificando como COMPLETED, PARTIAL, BLOCKED ou FAILED, relatando o que foi efetivamente alterado e o que não foi verificado.
 
 ## 10. Política de código e testes
 
 - Código deve preservar tipagem, contratos claros, erros tratados e separação de responsabilidades.
 - Regras esportivas devem ser testadas com exemplos verificáveis e/ou fixtures sintéticas claramente identificadas; incorporar casos-limite, exceções de regulamento e revisões históricas.
+- A governança e critérios de qualidade, cobertura mínima (90% linhas, 85% branches, 90% funções) e testes de mutação (score >= 80%) pertencem normativamente a `docs/development/test-governance.md`.
 - Validar integrações com entradas válidas, inválidas, ausentes, duplicadas, fora de ordem e corrigidas, conforme risco.
 - Proteger contratos públicos e comportamentos existentes com testes de regressão; evitar testes que apenas confirmem detalhes internos sem valor.
 - Alterações estruturais requerem validação dos limites de dependência, quando o código relevante existir.
@@ -190,6 +223,11 @@ Uma execução pode ser **COMPLETED, PARTIAL, BLOCKED ou FAILED**. Não declarar
 | `npm run verify:docs` | Integridade documental e referências. |
 | `npm run verify:security` | Verificações públicas de segurança e publicação. |
 | `npm run verify:architecture` | Limites arquiteturais aplicáveis. |
+| `npm run verify:tests` | Quality gates integrados de testes (qualidade, cobertura e mutação). |
+| `npm run test:domain` | Execução dos testes unitários do domínio (`packages/domain/test/`). |
+| `npm run test:coverage` | Medição de cobertura de código do domínio com thresholds mínimos. |
+| `npm run test:quality` | Auditoria de integridade e antifrágilidade das suítes de teste. |
+| `npm run test:mutation` | Avaliação de eficácia de detecção de defeitos (Mutation Testing). |
 | `npm run verify:seo` | Verificações de SEO aplicáveis. |
 | `npm run verify:analytics` | Verificações de analytics aplicáveis. |
 | `npm run agents:check` | Conferência de integridade dos contratos dos agentes (.gemini/agents/). |

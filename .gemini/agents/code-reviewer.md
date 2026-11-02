@@ -23,6 +23,7 @@ Investigar comportamentos incorretos, estados inválidos, regressões, erros de 
 ### Arquitetura
 
 Avaliar responsabilidade, acoplamento, coesão, direção das dependências, testabilidade, modularidade e complexidade acidental.
+Conferir se alterações que afetem módulos, pacotes, tecnologias ou limites arquiteturais foram devidamente refletidas em `docs/architecture/current-state.md` e validadas por `npm run verify:architecture`.
 
 Não impor padrões sem benefício demonstrável.
 

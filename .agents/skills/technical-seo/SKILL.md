@@ -3,41 +3,69 @@ name: technical-seo
 description: Validar arquitetura de SEO técnico em rotas públicas, metadados semânticos, canonicals HTTPS, sitemaps e structured data.
 ---
 
-# technical-seo
+# technical-seo — Engenharia de SEO Técnico e Indexação de Conteúdo
 
 ## Ativação e propósito
-Projetar e validar a indexabilidade e estrutura semântica das páginas públicas da plataforma sem comprometer a precisão factual ou a acessibilidade.
-- **Quando acionar:** Na criação de novas rotas públicas (temporadas, perfis de pilotos, equipes e histórias), definição de metadados e sitemaps.
-- **Quando NÃO acionar:** Para páginas internas de administração, pré-visualizações privadas de conteúdo ou dados de simulação hipotética.
+
+Validar, auditar e certificar a infraestrutura técnica de SEO e descoberta pública no F1Atlas, garantindo que páginas de Grandes Prêmios, perfis de pilotos, equipes e crônicas editoriais emitam metadados semânticos válidos, URLs canônicas seguras e dados estruturados compatíveis com Schema.org.
+
+- **Quando acionar:** Antes da publicação de novas rotas públicas, na alteração de esquemas JSON-LD, na reestruturação de URLs canônicas ou durante a execução de auditorias da esteira `verify:seo`.
+- **Quando NÃO acionar:** Para redação de copys editoriais (utilizar `editorial-research`) ou para otimizações de ranking artificiais não respaldadas em conteúdo real.
 
 ## Pré-condições
-- Consultar `docs/specs/engineering/SPEC-SEO-001.md`, `docs/seo/README.md` e `AGENTS.md` (Seção 6).
-- Não indexar dados sem licença comercial nem páginas em estado de rascunho (`draft`).
+
+- Consultar `AGENTS.md` (Seção 6 — Design, Acessibilidade, Editorial, SEO e Analytics) e os verificadores em `scripts/seo/`.
+- Conhecimento da proibição estrita de *Black Hat* ou promessas infundadas de posicionamento (#1 no Google).
+- O site público deve utilizar estritamente o protocolo **HTTPS** para todas as referências canônicas.
 
 ## Procedimento
-1. **Preparação:** Mapear a árvore de rotas públicas e a especificação em `docs/specs/engineering/SPEC-SEO-001.md`.
-2. **Investigação:**
-   - **Metadados:** Título único (até 60 caracteres) e descrição concisa e verdadeira (até 160 caracteres).
-   - **URL Canônica:** Presença de URL canônica absoluta com protocolo HTTPS explícito.
-   - **Open Graph / Twitter Cards:** Imagens de compartilhamento autorizadas e tags semânticas completas.
-   - **Dados Estruturados:** Formatação de JSON-LD (`SportsEvent`, `Person`, `SportsTeam`, `Article`) consistente com o conteúdo exibido.
-3. **Decisão:** Identificar rotas que devem conter diretiva `noindex` (ex.: simulações não oficiais, páginas de erro).
-4. **Execução:**
-   - Executar validadores de SEO:
-     - `node scripts/seo/validate-metadata.mjs`
-     - `node scripts/seo/validate-canonical.mjs`
-     - `node scripts/seo/validate-sitemap.mjs`
-     - `node scripts/seo/validate-structured-data.mjs`
-5. **Validação:** Analisar os códigos de saída dos scripts; registrar `SKIP` se a aplicação frontend ainda não estiver implantada.
-6. **Entrega:** Manifesto de páginas validado e estruturado para publicação em produção.
+
+1. **Auditoria de Metadados Semânticos de Página**:
+   - Inspecionar a tag `<title>`: deve ter entre 30 e 60 caracteres, ser única e descritiva.
+   - Inspecionar a meta tag `description`: deve ter entre 70 e 160 caracteres, comunicando o resumo da página sem truncagem.
+   - Conferir tags OpenGraph (`og:title`, `og:description`, `og:image`, `og:url`, `og:type`) e Twitter Cards (`twitter:card`).
+   - Executar: `node scripts/seo/validate-metadata.mjs`.
+2. **Auditoria de Canonicidade de URLs**:
+   - Garantir que cada rota pública declare tag `<link rel="canonical" href="https://...">`.
+   - Rejeitar URLs canônicas com protocolo HTTP ou domínio incorreto.
+   - Aplicar padrão determinístico e consistente de trailing slash (com ou sem barra final, sem duplicidade).
+   - Executar: `node scripts/seo/validate-canonical.mjs`.
+3. **Auditoria de Dados Estruturados (Schema.org / JSON-LD)**:
+   - Validar sintaxe e propriedades obrigatórias de cada schema injetado via `<script type="application/ld+json">`:
+     - `SportsEvent`: etapas de Grande Prêmio com data UTC, local e participantes.
+     - `SportsTeam`: construtores e equipes históricas com nome e fundação.
+     - `Person`: pilotos com nome, nacionalidade e histórico.
+     - `Article`: capítulos de crônicas editoriais com autor, data e fontes.
+     - `BreadcrumbList`: trilha de navegação contextual.
+   - Executar: `node scripts/seo/validate-structured-data.mjs`.
+4. **Auditoria de Rastreabilidade e Sitemaps**:
+   - Conferir a integridade de `sitemap.xml`, garantindo que todas as páginas públicas canônicas estejam listadas.
+   - Auditar `robots.txt` garantindo que rotas administrativas ou privadas recebam diretiva `Disallow`.
+   - Executar: `node scripts/seo/validate-sitemap.mjs`.
+5. **Execução Consolidada do Gate de SEO**:
+   - Rodar a esteira completa: `npm run verify:seo`.
 
 ## Validação
-- Executar `npm run verify:seo` e verificar aprovação dos contratos determinísticos.
-- Testar fixtures em `scripts/tests/contracts.test.mjs` comprovando rejeição de URLs canônicas inválidas.
+
+- Executar `npm run verify:seo` e comprovar aprovação unânime de todos os verificadores com código `0`.
+- Validar conformidade estrutural dos schemas JSON-LD contra as especificações oficiais do Schema.org.
 
 ## Falhas e limites
-- Não manipular metadados ou criar páginas duplicadas com o único intuito de manipular mecanismos de busca.
-- A aprovação sintática do manifesto de páginas não garante indexação pelos robôs de busca externos.
+
+### Matriz de Erros e Recuperação
+
+| Sintoma de Falha | Causa Raiz | Procedimento Corretivo |
+| :--- | :--- | :--- |
+| URL canônica sem HTTPS rejeitada | Tag gerada com `http://` em ambiente de build | Forçar protocolo seguro `https://` na montagem da URL base |
+| Título da página muito curto (< 30 chars) | Título genérico (ex.: "F1Atlas") | Enriquecer o título com contexto: "GP de São Paulo 2025 — Resultados e Histórico \| F1Atlas" |
+| Schema JSON-LD com sintaxe inválida | Chave JSON faltando vírgula ou objeto malformado | Validar com `JSON.parse()` e alinhar aos tipos do schema.org |
+| Página privada incluída no sitemap | Rota interna de desenvolvimento exportada no sitemap | Filtrar rotas privadas e manter apenas URLs públicas e homologadas |
+
+### Limitações
+- A conformidade técnica de SEO garante indexabilidade impecável por motores de busca; não garante posição ou tráfego.
 
 ## Entregáveis
-- Manifesto de SEO validado, templates de metadados por tipo de página e laudo de verificação do gate `verify:seo`.
+
+- Configuração de metadados semânticos e dados estruturados JSON-LD integrados.
+- Arquivos `sitemap.xml` e `robots.txt` validados.
+- Relatório de Auditoria Técnica de SEO com código de saída do gate `verify:seo`.

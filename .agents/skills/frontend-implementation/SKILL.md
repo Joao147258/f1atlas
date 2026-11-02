@@ -3,39 +3,66 @@ name: frontend-implementation
 description: Implementar interfaces responsivas e acessíveis aderentes à direção Precision Motorsport Editorial consumindo contratos de API.
 ---
 
-# frontend-implementation
+# frontend-implementation — Engenharia de Componentes e Interfaces Web
 
 ## Ativação e propósito
-Construir páginas, componentes visuais e fluxos interativos no frontend conforme a linguagem de design do projeto (*Race Intelligence* e *Racing Stories*).
-- **Quando acionar:** Na criação ou refatoração de páginas web, layouts, componentes de design system ou gráficos esportivos em `apps/web/`.
-- **Quando NÃO acionar:** Para cálculo de pontuações oficiais ou validação de regras de campeonato (devem residir no backend/domínio).
+
+Construir e refatorar páginas web, layouts responsivos e componentes modulares de interface segundo a direção estética **Precision Motorsport Editorial** no F1Atlas, consumindo contratos tipados e garantindo acessibilidade, performance e estados explícitos de carregamento.
+
+- **Quando acionar:** Na criação ou evolução de rotas, layouts, tabelas de classificação, cronogramas de Grandes Prêmios, comparadores de pilotos e cartões editoriais.
+- **Quando NÃO acionar:** Para validação de regras de pontuação esportiva ou cálculos de campeonato (devem residir exclusivamente no backend/domínio).
 
 ## Pré-condições
-- Consultar `DESIGN.md`, `docs/design/design-system.md`, `docs/design/information-architecture.md` e os contratos em `packages/contracts/`.
-- Compreender a distinção de densidade: *Race Intelligence* (superfície analítica escura Carbon `#101820`) vs. *Racing Stories* (superfície editorial Warm Ivory `#F6F3EC`).
+
+- Consultar `DESIGN.md`, `AGENTS.md` (Seção 6 — Design e Acessibilidade) e contratos tipados em `packages/contracts/`.
+- Conhecimento da paleta canônica de design tokens:
+  - Fundo Analítico (*Race Intelligence*): Carbon (`#101820`).
+  - Fundo Editorial (*Racing Stories*): Warm Ivory (`#F6F3EC`).
+  - Ação e Foco Visual: Signal Mint (`#67E3CD`).
+  - Destaque Histórico: Heritage Amber (`#E5A93C`).
+- O código de interface deve residir nas aplicações web (`apps/site` ou `apps/web`), mantendo componentes de apresentação desacoplados de regras de persistência.
 
 ## Procedimento
-1. **Preparação:** Identificar os componentes necessários da biblioteca (Header, Season Selector, Grand Prix Card, Standings Table, Performance Chart, etc.).
-2. **Investigação:**
-   - Conferir contratos da API para consumo tipado de dados.
-   - Analisar requisitos responsivos (mobile 360px, tablet 640px, desktop 1024px+).
-3. **Decisão:** Mapear estados do componente: carregamento (`loading`), sucesso com dados, ausência de dados (`empty state`) e erro (`error state`).
-4. **Execução:**
-   - Implementar componentes utilizando tokens semânticos de cor (`--color-bg-primary`, `--color-action`, `--color-status-*`).
-   - Aplicar `tabular-nums` e fonte IBM Plex Mono para alinhamento rigoroso de números, tempos e posições.
-   - Garantir navegabilidade completa por teclado e rótulos acessíveis.
-5. **Validação:**
-   - Validar renderização nos breakpoints prioritários.
-   - Conferir contraste de cores e ausência de dependência exclusiva de cor para transmitir informação.
-6. **Entrega:** Componentes integrados com testes de renderização e acessibilidade.
+
+1. **Separação entre Server e Client Components**:
+   - Manter páginas e contêineres de dados como React Server Components (RSC) para otimizar SEO, LCP e reduzir payload de JavaScript.
+   - Restringir a diretiva `'use client'` aos componentes que necessitam de estado local ou eventos de interação (ex.: alternância de visualização de voltas, filtros interativos de pilotos).
+2. **Tratamento dos 4 Estados de Interface**:
+   - Implementar para cada componente ou tela os 4 estados obrigatórios:
+     - `Loading`: skeletons acessíveis preservando o layout visual sem causar layout shifts (CLS).
+     - `Success`: renderização fluida com tipografia monoespaçada (`tabular-nums`) para tempos de volta e gaps.
+     - `Empty State`: aviso contextual claro e amigável quando a temporada ou etapa ainda não possui dados.
+     - `Error Boundary`: interface amigável com opção de retentativa sem travamento da aplicação.
+3. **Aplicação de Tipografia e Alinhamento Esportivo**:
+   - Utilizar fontes monoespaçadas com suporte a `tabular-nums` para tabelas de cronometragem, intervalos de setores e posições.
+   - Garantir alinhamento numérico à direita para tempos e diferenças de cronômetro.
+4. **Garantia de Independência de Cor**:
+   - Nunca transmitir o status de uma volta ou piloto (ex.: abandono, volta rápida, pole position) exclusivamente por cor; sempre associar badge textual, ícone semântico ou abreviação reconhecível.
+5. **Integração com Contratos Tipados**:
+   - Importar DTOs e interfaces de `packages/contracts/`, garantindo tipagem forte de ponta a ponta sem tipos `any`.
 
 ## Validação
-- Executar testes de componentes e acessibilidade quando implementados.
-- Validar conformidade de contratos e links com `npm run verify:docs`.
+
+- Executar a checagem de acessibilidade da interface via `accessibility-review`.
+- Validar conformidade de metadados e rotas: `npm run verify:seo`.
+- Validar integridade geral do workspace: `npm run verify`.
 
 ## Falhas e limites
-- Não incorporar logotipos, fotos ou marcas registradas oficiais de equipes/F1 sem licença verificada.
-- O frontend não deve alterar ou recalcular resultados esportivos recebidos da API oficial.
+
+### Matriz de Erros e Recuperação
+
+| Sintoma de Falha | Causa Raiz | Procedimento Corretivo |
+| :--- | :--- | :--- |
+| Layout Shift elevado (CLS) durante carregamento | Renderização condicional sem skeleton de altura fixa | Substituir spinner solto por skeleton com dimensões idênticas ao conteúdo final |
+| Tempos desalinhados verticalmente na tabela | Ausência de propriedade de numerais tabulares | Aplicar classe CSS `tabular-nums` ou fonte monoespaçada nas colunas de tempos |
+| Client Component desnecessário inflando o bundle | Diretiva `'use client'` colocada na raiz da página | Mover `'use client'` apenas para o botão/filtro específico, mantendo a página como RSC |
+| Cálculo de pontos executado no componente | Desenvolvedor somando pontos no cliente | Consumir o total de pontos já calculado e fornecido pelo DTO da API |
+
+### Limitações
+- A interface não recalcula dados oficiais nem introduz logos/marcas registradas sem autorização legal.
 
 ## Entregáveis
-- Código de componentes em `apps/web/`, estilos com tokens semânticos e estados de UI tratados de forma explícita.
+
+- Componentes e layouts Next.js implementados com tokens oficiais de `DESIGN.md`.
+- Estados de UI (loading, empty, error, success) tratados explicitamente.
+- Relatório de Entrega de Frontend com validação de responsividade e contratos.

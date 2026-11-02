@@ -11,5 +11,6 @@ As políticas a seguir são documentos de referência, não histórico de implem
 - `security-governance.md`: proteção de dados, caminhos e operações.
 - `technology-governance.md`: decisões sobre dependências e frameworks.
 - `quality-gates.md`: gates graduais e evidências.
+- `test-governance.md`: governança de testes automatizados, cobertura, mutation testing e qualidade.
 - `environment-variables.md`: governança de configurações e variáveis de ambiente.
 - `git-workflow.md`: revisão, branches e PRs.

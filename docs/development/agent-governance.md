@@ -359,11 +359,13 @@ Quando pertinentes:
 
 - `DESIGN.md`
 
+- `docs/domain/` (arquitetura canônica do domínio esportivo e `development-status.md`)
+
 - Políticas em `docs/development/`
 
 - Especificações em `docs/specs/`
 
-- ADRs relacionados
+- ADRs relacionados em `docs/architecture/adr/`
 
 ### 8.2. Conhecimento especializado
 

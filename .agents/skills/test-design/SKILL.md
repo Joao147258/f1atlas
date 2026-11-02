@@ -3,39 +3,67 @@ name: test-design
 description: Projetar matrizes de testes determinísticos cobrindo cenários positivos, negativos, bordas de regulamento e regressões com fixtures sintéticas.
 ---
 
-# test-design
+# test-design — Engenharia e Desenho de Testes Determinísticos
 
 ## Ativação e propósito
-Conceber estratégias de testes automatizados, desenhar casos de borda e preparar fixtures sintéticas determinísticas para validação de regras de domínio e automações.
-- **Quando acionar:** Antes ou durante a implementação de novas regras desportivas, contratos de API, verificadores de harness ou correções de bugs.
-- **Quando NÃO acionar:** Para testes de interface manuais ad-hoc sem metodologia ou para benchmarking de infraestrutura prematura.
+
+Projetar e implementar matrizes completas de testes automatizados determinísticos, cobrindo regras esportivas nominais, casos-limite de regulamento, regressões de defeitos e cenários negativos, utilizando fixtures sintéticas isoladas.
+
+- **Quando acionar:** No desenvolvimento de novas funcionalidades, regras de campeonato, adaptadores de integração, mappers de persistência ou na correção de bugs reportados.
+- **Quando NÃO acionar:** Para validações manuais exploratórias sem automação ou para testes de carga em infraestrutura de produção.
 
 ## Pré-condições
-- Consultar `AGENTS.md` (Seção 10), `docs/development/script-governance.md`, `SPEC-GOV-003.md` e as SPECs da funcionalidade sob teste.
-- Isolar fixtures sintéticas em diretórios temporários (`os.tmpdir()`) com limpeza automática em bloco `finally`.
+
+- Consultar `AGENTS.md` (Seção 10 — Política de Código e Testes) e as SPECs funcionais correspondentes.
+- **Princípio do Determinismo**: Todo teste deve produzir exatamente o mesmo resultado independentemente da máquina, fuso horário, ordem de execução ou conexão com a internet.
+- Utilizar primordialmente o test runner nativo do Node.js (`node:test` e `node:assert`).
 
 ## Procedimento
-1. **Preparação:** Mapear a especificação do componente sob teste e elencar os invariantes obrigatórios.
-2. **Investigação:**
-   - **Casos Positivos (Happy Path):** Entradas válidas que produzem os resultados esperados.
-   - **Casos Negativos (Error Handling):** Entradas inválidas, corrompidas ou incompletas que devem falhar com erros claros.
-   - **Casos de Borda (Edge Cases):** Empates em pontuação, provas canceladas, bandeira vermelha, abandono duplo, limites de array e symlinks.
-   - **Casos Adversariais:** Inserção de credenciais sintéticas, path traversal (`../`), payloads de tamanho excessivo.
-3. **Decisão:** Determinar o nível do teste (unitário puro no domínio, integração de contrato ou teste de script CLI).
-4. **Execução:**
-   - Escrever os testes utilizando o runner nativo do Node.js (`node:test` e `node:assert/strict`).
-   - Gerar strings sintéticas sensíveis dinamicamente para evitar falsos positivos nos scanners do workspace.
-5. **Validação:**
-   - Executar os testes via `npm run test:harness`.
-   - Garantir que o teste comprove tanto o sucesso nominal quanto a reprovação de violações.
-6. **Entrega:** Suíte de testes integrada e executável de forma reprodutiva em clone limpo ou CI.
+
+1. **Classificação do Nível de Teste**:
+   - *Unitário de Domínio*: testes puros de entidades, agregados e regras de pontuação (execução em milissegundos sem I/O).
+   - *Caso de Uso / Aplicação*: testes dos fluxos de aplicação com portas e adaptadores simulados via stubs determinísticos.
+   - *Integração de Persistência*: testes de repositórios contra banco MySQL de teste temporário e descartável.
+   - *Contrato de Governança*: testes de integridade de agentes, skills, links e segurança do harness.
+2. **Desenho da Matriz de Casos de Teste (Cenários)**:
+   - **Cenário Nominal (Happy Path)**: fluxo esperado com entradas válidas.
+   - **Cenários de Borda (Boundary Conditions)**: limites de regulamento (ex.: corrida com exatamente 75% da distância; 10º colocado na pontuação; empate com mesma quantidade de 1º, 2º e 3º lugares).
+   - **Cenários Negativos (Unhappy Path)**: entradas malformadas, payloads nulos, tentativas de injeção e violações de regras esportivas.
+   - **Cenários de Regressão**: reprodução exata de defeitos reportados anteriormente para garantir que não voltem a ocorrer.
+3. **Construção de Fixtures Sintéticas**:
+   - Criar objetos de teste claros e autocontidos sem acoplamento a dados externos.
+   - Nunca utilizar dados pessoais reais ou credenciais de produção em fixtures.
+4. **Implementação das Asserções com `node:assert`**:
+   - Utilizar asserções estritas: `assert.strictEqual()`, `assert.deepStrictEqual()`, `assert.rejects()`.
+   - Evitar asserções frágeis ou genéricas (ex.: testar apenas se o objeto não é nulo).
+5. **Isolamento de Estado e Ciclo de Vida**:
+   - Garantir que cada teste limpe seu estado (`beforeEach`, `afterEach`).
+   - Evitar variáveis globais compartilhadas ou ordem de execução presumida.
+6. **Execução e Medição de Cobertura**:
+   - Executar a suíte de testes do harness: `npm run test:harness`.
+   - Verificar ausência de testes intermitentes (*flaky tests*).
 
 ## Validação
-- Executar `npm run test:harness` e conferir que todos os testes passem com 100% de sucesso sem timeouts ou dependências de rede.
+
+- Executar todos os testes do projeto: `npm run test:harness` e `npm run test:api` (quando aplicável).
+- Comprovar 100% de aprovação e tempo de execução total inferior a 5 segundos no harness de governança.
 
 ## Falhas e limites
-- Não criar mocks tautológicos que apenas confirmem a implementação interna sem testar o comportamento real.
-- Não alterar as asserções de um teste para forçar aprovação sem corrigir o defeito raiz.
+
+### Matriz de Erros e Recuperação
+
+| Sintoma de Falha | Causa Raiz | Procedimento Corretivo |
+| :--- | :--- | :--- |
+| Teste falha intermitentemente (*flaky*) | Dependência de relógio do sistema ou ordem assíncrona | Mockar timestamps estaticamente e isolar promises com `await` |
+| Teste de banco falhando em CI | Dependência de banco de dados rodando em `localhost:3306` | Isolar em banco temporário de teste ou emitir SKIP justificado quando ausente |
+| Teste aprovando apesar de bug | Asserção testando propriedade errada | Refatorar a asserção para verificar o estado exato e o valor de retorno |
+| Falha por vazamento de estado | Teste A modificando dados que o Teste B consome | Resetar variáveis ou fixtures em hook `beforeEach` |
+
+### Limitações
+- Testes automatizados validam o código contra as expectativas especificadas; não substituem a revisão humana de requisitos.
 
 ## Entregáveis
-- Arquivo de testes em `scripts/tests/*.test.mjs` ou no pacote correspondente, fixtures sintéticas e relatório de cobertura de cenários.
+
+- Arquivos de teste `*.test.mjs` ou `*.spec.ts` integrados ao repositório.
+- Fixtures sintéticas documentadas.
+- Relatório de Cobertura e Estratégia de Testes com cenários de borda validados.

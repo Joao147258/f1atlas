@@ -4,3 +4,4 @@ ADRs registram decisões relevantes com contexto, alternativas, consequências e
 
 - `0001-modular-monolith.md`: opção inicial ainda sujeita a validação.
 - `0002-prisma-mysql-persistence.md`: fundação de persistência com Prisma ORM 7 e MySQL no NestJS (aprovado).
+- `0003-domain-package-separation.md`: segregação física da camada Domain em pacote independente `packages/domain` (aprovado).
