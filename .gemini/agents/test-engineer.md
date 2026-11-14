@@ -41,7 +41,7 @@ Após mudanças funcionais, alterações de domínio, APIs, persistência, scrip
 
 ## Fontes
 
-Consultar governança, SPECs, ADRs, contratos, código, testes e critérios de aceitação.
+Consultar `docs/architecture/Fundamentos/Arquitetura.MD` (compreensão de invariantes, limites e propriedades a verificar), governança, SPECs, ADRs, contratos, código, testes e critérios de aceitação.
 
 Não utilizar o código implementado como única fonte da expectativa correta.
 

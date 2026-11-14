@@ -1,83 +1,150 @@
 /**
  * ============================================================================
- * F1Atlas — Camada Domain: Documentação Arquitetural e Plano Conceitual
+ * F1Atlas — Camada Domain | Scoring: PointsCalculator
  * ============================================================================
+ *
+ * NÍVEL 1 — ESPECIFICAÇÃO ARQUITETURAL DO COMPONENTE
  *
  * Identificação:
- * - Nome do componente: PointsCalculator (Calculadora de Pontos)
+ * - Componente: PointsCalculator (Calculadora de Pontos)
  * - Módulo: scoring
- * - Papel arquitetural previsto: Serviço de Domínio Puro (Domain Service)
+ * - Papel Arquitetural: Serviço de Domínio Puro (Domain Service)
+ * - Referência Normativa DDS: docs/domain/scoring.md
+ * - Invariantes Vinculadas: INV-SC-01, INV-SC-03, INV-SC-04, INV-SC-05
  *
- * Responsabilidade:
+ * Responsabilidade de Domínio:
  * - Executa o cálculo determinístico e sem efeitos colaterais de pontuação obtida
- *   por pilotos e equipes em uma sessão de corrida ou sprint, combinando o
+ *   por pilotos e construtores em uma sessão de corrida ou sprint, combinando o
  *   SessionResult de cada participante com o ScoringRuleset da temporada.
- * - Avalia as condições regulamentares específicas:
- *   - Verificação de status classificado (pilotos DNF que completaram >90% da distância
- *     podem ser classificados, mas DSQ não pontuam sob hipótese alguma).
- *   - Aplicação de bonificação de volta mais rápida (se prevista no regulamento da temporada
- *     e se o piloto terminou dentro dos critérios mínimos, como top 10).
- *   - Agregação de pontos de construtores: soma dos pontos obtidos por todos os carros
- *     da equipe na sessão (geralmente dois carros, respeitando eventuais pilotos inelegíveis).
+ * - Avalia as condições regulamentares específicas de elegibilidade esportiva (FIA Artigo 62.1):
+ *   - Status FINISHED: Piloto que cruzou a linha de chegada; pontua conforme sua posição.
+ *   - Status DNF Classificado: Piloto que completou >= 90% das voltas do vencedor (posição homologada
+ *     não nula no SessionResult); se terminar no top 10, pontua regularmente.
+ *   - Status DNF Não Classificado / NC / DNS: 0 pontos.
+ *   - Status DSQ (Desclassificado): Anulação absoluta de pontos e bonificações (0 pontos).
+ * - Bonificação de volta mais rápida (Fastest Lap):
+ *   - Outorgada apenas em sessões RACE quando fastestLapRank === 1 e prevista no ruleset.
+ *   - Se o ruleset exigir top 10, o piloto deve possuir posição classificada <= 10.
+ * - Agregação de Construtores:
+ *   - Soma dos pontos individuais de todos os carros homologados inscritos sob a equipe na prova.
  *
- * Relacionamentos:
- * - Recebe instâncias de SessionResult e ScoringRuleset.
- * - Alimenta os agregadores de StandingsCalculator para atualizar as tabelas do campeonato.
- * - Responsabilidades que NÃO pertencem a este componente:
- *   - Não armazena nem persiste pontuações acumuladas (escopo de Standings).
- *   - Não resolve desempates entre competidores (escopo de TieBreakPolicy).
- *   - Não executa queries em bancos de dados nem chama APIs externas.
- *
- * Comportamento esperado:
- * - Cálculo de pontos individuais por piloto em uma sessão.
- * - Cálculo consolidado de pontos por construtor em uma sessão.
- * - Garantia de determinismo: as mesmas entradas sempre produzem rigorosamente a mesma pontuação.
- *
- * Restrições e Invariantes:
- * - Função matemática pura: sem estado interno mutável ou dependências temporais.
- * - Piloto desclassificado (DSQ) recebe exatamente 0 pontos, e sua volta rápida (se houver)
- *   não pode conceder bonificação nem impedir terceiros de pontuar indevidamente.
- * - Dependências proibidas: qualquer framework web ou biblioteca externa de persistência.
- *
- * Decisões pendentes:
- * - Definir se o cálculo para corridas suspensas (Spa 2021 style vs pós-2022) deve receber
- *   a porcentagem de voltas completadas como parâmetro explícito ou extrair de Session.
+ * Relacionamentos e Fronteiras:
+ * - Recebe instâncias imutáveis de SessionResult e ScoringRuleset.
+ * - Consumido por StandingsCalculator para consolidar tabelas de pilotos e construtores.
+ * - Não altera ordens de pista, penalidades ou tempos (escopo do módulo events).
+ * - Totalmente isolado de banco de dados, relógio de sistema ou transporte de rede.
  * ============================================================================
  */
 
-/**
- * Calcula a pontuação individual de um piloto para uma sessão com base no resultado e regras vigentes.
- *
- * @name calculateSessionPoints
- * @conceptualSignature `(result: SessionResult, sessionType: 'RACE' | 'SPRINT', ruleset: ScoringRuleset, distancePercentage?: number): { totalPoints: number; positionPoints: number; fastestLapPoints: number }`
- * @purpose Determinar a pontuação exata atribuível a um piloto em decorrência de seu resultado esportivo.
- * @preconditions
- *   - `result` deve representar um resultado da sessão.
- *   - `ruleset` deve ser o regulamento aplicável à temporada correspondente.
- * @postconditions
- *   - Retorna objeto com discriminação de pontos por posição, volta rápida e pontuação total.
- * @invariants
- *   - Se `result.status === 'DSQ'`, o total de pontos retornado é rigorosamente 0.
- * @exceptionHandling
- *   - Não lança exceção em condições normais; situações de não-pontuação retornam zero.
- * @justification
- *   - Garante conformidade estrita e auditabilidade total da atribuição de pontos na F1.
- */
+import { SessionResult, ResultStatus } from '../events/session-result.ts';
+import { ScoringRuleset, DistanceBracket } from './scoring-ruleset.ts';
 
 /**
- * Calcula a pontuação somada de um construtor a partir dos resultados de seus carros na sessão.
- *
- * @name calculateConstructorPoints
- * @conceptualSignature `(resultsForConstructor: readonly SessionResult[], sessionType: 'RACE' | 'SPRINT', ruleset: ScoringRuleset, distancePercentage?: number): number`
- * @purpose Consolidar os pontos obtidos por uma equipe no Campeonato Mundial de Construtores em uma prova.
- * @preconditions
- *   - `resultsForConstructor` deve conter apenas resultados pertencentes ao mesmo construtor.
- * @postconditions
- *   - Retorna a soma aritmética dos pontos individuais válidos conquistados por seus carros.
- * @invariants
- *   - Pontos de carros desclassificados são excluídos da soma.
- * @exceptionHandling
- *   - Retorna 0 caso a coleção de resultados esteja vazia ou nenhum carro pontue.
- * @justification
- *   - Permite a correta evolução da tabela de construtores sem duplicar lógica de pontuação.
+ * Detalhamento discriminado da pontuação apurada para um competidor.
  */
+export interface SessionPointsBreakdown {
+  readonly totalPoints: number;
+  readonly positionPoints: number;
+  readonly fastestLapPoints: number;
+}
+
+/**
+ * Serviço de Domínio Puro responsável pelo cálculo determinístico de pontos da Fórmula 1.
+ */
+export class PointsCalculator {
+  /**
+   * Consulta direta da pontuação correspondente a uma posição de chegada.
+   */
+  public static getPointsForPosition(
+    ruleset: ScoringRuleset,
+    sessionType: 'RACE' | 'SPRINT',
+    position: number,
+    distanceBracket: DistanceBracket = DistanceBracket.FULL_DISTANCE
+  ): number {
+    return ruleset.getPointsForPosition(sessionType, position, distanceBracket);
+  }
+
+  /**
+   * Calcula a pontuação individual de um piloto para uma sessão específica.
+   *
+   * @param result Resultado apurado do competidor na sessão.
+   * @param sessionType Tipo de sessão ('RACE' ou 'SPRINT').
+   * @param ruleset Conjunto de regras de pontuação aplicável à temporada.
+   * @param distanceBracket Faixa de distância homologada (padrão: FULL_DISTANCE).
+   * @returns Objeto com a discriminação exata dos pontos por posição, bônus e total.
+   */
+  public static calculateSessionPoints(
+    result: SessionResult,
+    sessionType: 'RACE' | 'SPRINT',
+    ruleset: ScoringRuleset,
+    distanceBracket: DistanceBracket = DistanceBracket.FULL_DISTANCE
+  ): SessionPointsBreakdown {
+    // DSQ, DNS ou NC conferem rigorosamente 0 pontos absolutos (INV-SC-04)
+    if (
+      result.status === ResultStatus.DSQ ||
+      result.status === ResultStatus.DNS ||
+      result.status === ResultStatus.NC ||
+      result.position === null ||
+      result.position < 1
+    ) {
+      return Object.freeze({
+        totalPoints: 0,
+        positionPoints: 0,
+        fastestLapPoints: 0
+      });
+    }
+
+    // Calcula os pontos base da posição
+    const positionPoints = ruleset.getPointsForPosition(sessionType, result.position, distanceBracket);
+
+    // Avalia bonificação por volta mais rápida
+    let fastestLapPoints = 0;
+    if (
+      sessionType === 'RACE' &&
+      result.fastestLapRank === 1 &&
+      ruleset.fastestLapBonusPoints > 0
+    ) {
+      const isTop10Eligible = !ruleset.fastestLapRequiresTop10 || result.position <= 10;
+      if (isTop10Eligible) {
+        fastestLapPoints = ruleset.fastestLapBonusPoints;
+      }
+    }
+
+    const totalPoints = positionPoints + fastestLapPoints;
+
+    return Object.freeze({
+      totalPoints,
+      positionPoints,
+      fastestLapPoints
+    });
+  }
+
+  /**
+   * Calcula a pontuação acumulada obtida por um construtor a partir dos resultados de seus carros na sessão.
+   *
+   * @param resultsForConstructor Lista de resultados dos carros inscritos pela equipe na prova.
+   * @param sessionType Tipo de sessão ('RACE' ou 'SPRINT').
+   * @param ruleset Conjunto de regras de pontuação aplicável.
+   * @param distanceBracket Faixa de distância homologada (padrão: FULL_DISTANCE).
+   * @returns Soma aritmética total de pontos atribuídos ao construtor na sessão.
+   */
+  public static calculateConstructorPoints(
+    resultsForConstructor: readonly SessionResult[],
+    sessionType: 'RACE' | 'SPRINT',
+    ruleset: ScoringRuleset,
+    distanceBracket: DistanceBracket = DistanceBracket.FULL_DISTANCE
+  ): number {
+    if (!Array.isArray(resultsForConstructor) || resultsForConstructor.length === 0) {
+      return 0;
+    }
+
+    let totalConstructorPoints = 0;
+
+    for (const res of resultsForConstructor) {
+      const breakdown = PointsCalculator.calculateSessionPoints(res, sessionType, ruleset, distanceBracket);
+      totalConstructorPoints += breakdown.totalPoints;
+    }
+
+    return totalConstructorPoints;
+  }
+}

@@ -105,6 +105,7 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 | Fonte | O que determina |
 |---|---|
 | `AGENTS.md` | Invariantes globais públicos, limites comuns e fluxo mínimo de trabalho. |
+| `docs/architecture/Fundamentos/Arquitetura.MD` | Referência canônica oficial dos fundamentos arquiteturais, organização de responsabilidades, limites e raciocínio de trade-offs. |
 | `docs/domain/` | Arquitetura canônica da camada Domain, regras de negócio esportivas e acompanhamento de status. |
 | `docs/architecture/current-state.md` | Retrato vivo canônico da arquitetura efetivamente existente, limites modulares e dependências ativas. |
 | `docs/specs/` | Requisitos e critérios verificáveis da funcionalidade ou componente. |
@@ -119,6 +120,7 @@ O detalhamento de design, SEO e analytics permanece nos respectivos documentos e
 
 | Fonte | Responsabilidade |
 |---|---|
+| **Fundamentos Arquiteturais (`docs/architecture/Fundamentos/Arquitetura.MD`)** | Explicar os conceitos essenciais, a organização de responsabilidades, os limites conceituais e o raciocínio de trade-offs. |
 | **Documentação arquitetural (`docs/domain/`, `ARCHITECTURE.md`, `current-state.md`)** | Descrever a intenção, as decisões, os limites esperados e o estado arquitetural real. |
 | **Código-fonte (`packages/domain/`, `apps/`)** | Representar o comportamento efetivamente implementado no repositório. |
 | **Testes automatizados (`test:harness`, testes unitários)** | Verificar propriedades, invariantes e comportamentos definidos. |
@@ -156,7 +158,7 @@ Contratos detalhados de agentes e skills: `docs/specs/governance/` e `docs/devel
 O desenvolvimento de componentes, especialmente na camada Domain (`packages/domain`), obedece a um ciclo disciplinado em 6 etapas:
 
 ### 9.1. Etapa 1 — Compreensão
-1. Consultar as instruções de governança, o retrato arquitetural vivo em `docs/architecture/current-state.md` e a documentação do módulo em `docs/domain/<modulo>.md`.
+1. Consultar as instruções de governança, o retrato arquitetural vivo em `docs/architecture/current-state.md` e os fundamentos em `docs/architecture/Fundamentos/Arquitetura.MD` para compreender limites e responsabilidades, além da documentação do módulo em `docs/domain/<modulo>.md`.
 2. Identificar responsabilidades, conceitos e regras do componente a alterar.
 3. Ler integralmente os comentários existentes no arquivo TypeScript correspondente.
 4. Consultar decisões arquiteturais aprovadas em `docs/architecture/adr/`.

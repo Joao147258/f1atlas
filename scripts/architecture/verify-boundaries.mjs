@@ -28,6 +28,15 @@ import { PROJECT_ROOT, isMain, report } from '../lib/workspace.mjs';
 const FORBIDDEN_DOMAIN_IMPORTS_REGEX = /(?:from\s*['"]|import\s*\(\s*['"]|require\s*\(\s*['"])(?:@nestjs\/|next(?:\/|['"])|react(?:\/|['"])|@prisma\/|drizzle-orm(?:\/|['"])|[^'"]*\/(?:infrastructure|presentation)\/)/;
 
 /**
+ * Expressão regular que detecta importações proibidas nos contratos (packages/contracts):
+ * - Frameworks HTTP/Web: @nestjs, next, react
+ * - ORMs e persistência: @prisma, drizzle-orm
+ * - Camadas internas de domínio ou infraestrutura: /domain/, /infrastructure/, @f1atlas/domain
+ * @type {RegExp}
+ */
+const FORBIDDEN_CONTRACTS_IMPORTS_REGEX = /(?:from\s*['"]|import\s*\(\s*['"]|require\s*\(\s*['"])(?:@nestjs\/|next(?:\/|['"])|react(?:\/|['"])|@prisma\/|drizzle-orm(?:\/|['"])|[^'"]*(?:\/domain\/|\/infrastructure\/|\/presentation\/)|@f1atlas\/domain)/;
+
+/**
  * Extensões de arquivos de código fonte sujeitas à verificação arquitetural.
  * @type {RegExp}
  */
@@ -57,7 +66,11 @@ export function checkBoundaryFiles(workspaceRoot, relativeFiles) {
       continue;
     }
 
-    if (FORBIDDEN_DOMAIN_IMPORTS_REGEX.test(sourceContent)) {
+    if (relativeFilePath.startsWith('packages/contracts')) {
+      if (FORBIDDEN_CONTRACTS_IMPORTS_REGEX.test(sourceContent)) {
+        boundaryIssues.push(`${relativeFilePath}: contratos violam isolamento (importam domínio, infraestrutura ou frameworks)`);
+      }
+    } else if (FORBIDDEN_DOMAIN_IMPORTS_REGEX.test(sourceContent)) {
       boundaryIssues.push(`${relativeFilePath}: domínio importa framework ou infraestrutura`);
     }
   }
@@ -102,20 +115,21 @@ function collectSourceFiles(directoryPath, prefixPath = '') {
  * Retorna se a verificação é aplicável (se há módulos de domínio existentes) e as eventuais violações.
  */
 export function checkArchitecture(workspaceRoot = PROJECT_ROOT) {
-  const domainRoots = [
+  const inspectedRoots = [
     'apps/api/src/domain',
-    'packages/domain'
+    'packages/domain',
+    'packages/contracts/src'
   ];
 
-  const availableDomainRoots = domainRoots.filter(rootCandidate =>
+  const availableRoots = inspectedRoots.filter(rootCandidate =>
     fs.existsSync(path.join(workspaceRoot, rootCandidate))
   );
 
-  if (availableDomainRoots.length === 0) {
+  if (availableRoots.length === 0) {
     return { applicable: false, issues: [] };
   }
 
-  const sourceFiles = availableDomainRoots
+  const sourceFiles = availableRoots
     .flatMap(rootDirectory => collectSourceFiles(path.join(workspaceRoot, rootDirectory), rootDirectory))
     .filter(filePath => SOURCE_CODE_EXTENSIONS_REGEX.test(filePath));
 

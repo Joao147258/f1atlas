@@ -4,136 +4,168 @@
  * ============================================================================
  *
  * Identificação:
- * - Componente: EntityId
+ * - Componente: EntityId<TKind>
  * - Módulo: Shared
- * - Papel Arquitetural: Value Object / Tipo Base para Identidades de Entidades
+ * - Papel Arquitetural: Value Object / Identidade Tipada
+ * - Estado: Implementado e Validado
  *
  * Responsabilidade:
- * - Representar o conceito de identidade opaca, imutável e fortemente tipada
- *   para entidades de domínio (DriverId, TeamId, SeasonId, GrandPrixId, etc.).
- * - Resolver o problema de "Obsessão por Primitivos" (Primitive Obsession),
- *   impedindo que strings arbitrárias (ex.: UUIDs, slugs ou códigos) sejam
- *   intercambiadas acidentalmente entre conceitos de domínio distintos.
- * - Garantir que duas entidades sejam comparadas por sua identidade durável
- *   no tempo, e não pela igualdade superficial de todos os seus atributos.
+ * - Representar identificadores de entidades do domínio de maneira imutável,
+ *   encapsulada, validada na construção, comparável por valor e semanticamente
+ *   diferenciada pelo sistema de tipos (Phantom Type / Nominal Typing).
+ * - Combater o anti-padrão "Obsessão por Primitivos" (Primitive Obsession),
+ *   impedindo que identificadores de entidades distintas (ex.: DriverId vs
+ *   TeamId) sejam intercambiados acidentalmente como strings comuns.
+ *
+ * Fundamentos Teóricos:
+ * - DDD — Value Object: Objeto caracterizado exclusivamente por seu valor,
+ *   sem ciclo de vida próprio e com igualdade semântica estrutural.
+ * - Invariants: Condições obrigatórias que permanecem verdadeiras durante toda
+ *   a vida do objeto (não-vacuidade, ausência de espaços externos, imutabilidade).
+ * - Phantom Types / Nominal Typing: Utilização do parâmetro genérico TKind para
+ *   transportar informação semântica de categoria estática no TypeScript, com
+ *   zero overhead de memória e tempo de execução.
  *
  * Relacionamentos:
- * - Utilizado por todas as entidades e agregados do domínio (Driver, Team,
- *   Season, GrandPrix, Session, etc.) como tipo base para seus identificadores.
- * - Fornece métodos de comparação de igualdade estrutural entre identidades.
- * - Não deve conter regras de persistência (ex.: auto-incremento de banco relacional)
- *   nem depender de geradores específicos de infraestrutura.
- *
- * Comportamento Esperado:
- * - Encapsular um valor bruto (string/UUIDv4/slug normalizado) não vazio.
- * - Oferecer validação de formato e integridade no momento da instanciação.
- * - Permitir comparação por valor (`equals(other)`).
- * - Fornecer representação canônica em string para serialização e logs.
- *
- * Restrições e Invariantes:
- * - Imutabilidade estrita: uma vez criada, a identidade nunca muda de valor.
- * - Não nulidade e não vacuidade: o valor encapsulado nunca pode ser nulo,
- *   indefinido ou consistir exclusivamente de espaços em branco.
- * - Independência total de frameworks: zero dependência de NestJS, Prisma ou UUID libs no domínio puro.
- *
- * Decisões Pendentes:
- * - Avaliar se utilizaremos Brand Types do TypeScript (`type DriverId = string & { readonly __brand: unique symbol }`)
- *   ou uma classe concreta Value Object `EntityId<T>`. Brand Types oferecem zero overhead
- *   de runtime, enquanto classes facilitam métodos auxiliares como `.equals()` e validação.
- * - Definir se identificadores de participantes históricos aceitarão tanto UUIDs internos
- *   quanto slugs canônicos imutáveis (ex.: "senna-ayrton", "ferrari-scuderia").
+ * - Utilizado por entidades e agregados do domínio (Driver, Team, Season, GrandPrix,
+ *   Session, etc.) como tipo canônico de identidade.
+ * - Utiliza o contrato semântico de erro DomainError (DomainErrorCode.INVALID_ARGUMENT).
+ * - Totalmente desacoplado de frameworks web (NestJS), ORMs (Prisma), HTTP e libs externas.
  *
  * ============================================================================
  */
 
-/**
- * Operação prevista: createEntityId
- *
- * Objetivo:
- * Instanciar e validar um identificador de entidade garantindo que seu valor
- * bruto seja uma string válida, não vazia e sanitizada.
- *
- * Motivação:
- * Centralizar a criação e a validação de identidades para impedir que strings
- * corrompidas ou em branco entrem nas raízes de agregação do domínio.
- *
- * Entradas previstas:
- * - rawValue: string representando o identificador bruto.
- *
- * Saída esperada:
- * - Instância de EntityId válida encapsulando o valor.
- * - Falha (DomainError ou Result.fail) se a string for nula, vazia ou inválida.
- *
- * Regras:
- * - Rejeitar strings vazias ou compostas apenas por espaços.
- * - Normalizar espaços extras nas extremidades (trim).
- *
- * Invariantes:
- * - O valor interno resultante é sempre imutável e válido.
- *
- * Validação futura:
- * - Criação com string válida retorna sucesso.
- * - Criação com string vazia ou nula resulta em erro de validação de domínio.
- *
- * Implementação:
- * A operação deverá ser escrita imediatamente abaixo deste comentário
- * durante a etapa de desenvolvimento.
- */
+import { DomainError, DomainErrorCode } from './domain-error.ts';
 
 /**
- * Operação prevista: equals
+ * Value Object genérico imutável que encapsula a identidade durável de uma entidade.
  *
- * Objetivo:
- * Comparar se duas instâncias de identidade representam rigorosamente a mesma entidade.
- *
- * Motivação:
- * O conceito fundamental de Entidade no DDD depende da comparação por identidade
- * e não pelos demais atributos mutáveis do objeto.
- *
- * Entradas previstas:
- * - other: outra instância de EntityId para comparação.
- *
- * Saída esperada:
- * - Booleano indicando se os identificadores encapsulados são idênticos.
- *
- * Regras:
- * - Retornar falso se `other` for nulo, indefinido ou de tipo incompatível.
- * - Comparação sensível a maiúsculas/minúsculas conforme a política da entidade.
- *
- * Validação futura:
- * - Dois EntityIds com o mesmo valor retornam true.
- * - EntityIds com valores diferentes retornam false.
- * - Comparação com valor nulo retorna false sem disparar exceção.
- *
- * Implementação:
- * A operação deverá ser escrita imediatamente abaixo deste comentário
- * durante a etapa de desenvolvimento.
+ * @typeParam TKind Categoria lógica da entidade associada ao identificador (ex.: "driver", "team").
  */
+export class EntityId<TKind extends string> {
+  /**
+   * Phantom brand para diferenciação nominal estática entre categorias no TypeScript.
+   * Não ocupa espaço de memória em tempo de execução (type erasure).
+   */
+  declare private readonly __kind: TKind;
+
+  /**
+   * Valor primitivo canônico encapsulado.
+   */
+  private readonly _value: string;
+
+  /**
+   * Construtor privado para restringir instanciação direta e assegurar invariantes.
+   * A construção só pode ocorrer através das factories controladas.
+   */
+  private constructor(value: string) {
+    this._value = value;
+    Object.freeze(this);
+  }
+
+  /**
+   * Constrói e valida uma nova identidade tipada imutável.
+   *
+   * Invariantes validadas:
+   * - INV-01: O valor de entrada deve ser uma string em runtime.
+   * - INV-02: O valor não pode ser vazio ("").
+   * - INV-03: O valor não pode conter apenas espaços em branco.
+   * - INV-04: O valor não pode conter espaços nas extremidades (rejeição de espaços externos).
+   * - INV-05: A instância é congelada após a criação, garantindo imutabilidade estrita.
+   * - INV-08: A representação e capitalização originais são integralmente preservadas.
+   *
+   * @typeParam TKind Categoria nominal da entidade.
+   * @param rawValue String representando o identificador bruto.
+   * @returns Instância congelada de EntityId<TKind>.
+   * @throws {DomainError} Caso alguma invariante de construção seja violada.
+   */
+  static from<TKind extends string>(rawValue: string): EntityId<TKind> {
+    if (typeof rawValue !== 'string') {
+      throw new DomainError(
+        DomainErrorCode.INVALID_ARGUMENT,
+        'O identificador deve ser uma string válida.'
+      );
+    }
+
+    if (rawValue.length === 0) {
+      throw new DomainError(
+        DomainErrorCode.INVALID_ARGUMENT,
+        'O identificador não pode ser vazio.'
+      );
+    }
+
+    if (rawValue.trim().length === 0) {
+      throw new DomainError(
+        DomainErrorCode.INVALID_ARGUMENT,
+        'O identificador não pode conter apenas espaços em branco.'
+      );
+    }
+
+    if (rawValue !== rawValue.trim()) {
+      throw new DomainError(
+        DomainErrorCode.INVALID_ARGUMENT,
+        'O identificador não pode conter espaços nas extremidades.'
+      );
+    }
+
+    return new EntityId<TKind>(rawValue);
+  }
+
+  /**
+   * Fábrica estática alternativa aderente à convenção createEntityId.
+   */
+  static createEntityId<TKind extends string>(rawValue: string): EntityId<TKind> {
+    return EntityId.from<TKind>(rawValue);
+  }
+
+  /**
+   * Getter que expõe o valor primitivo sanitizado do identificador.
+   */
+  get value(): string {
+    return this._value;
+  }
+
+  /**
+   * Retorna a representação primitiva do identificador para uso em persistência ou DTOs.
+   */
+  toValue(): string {
+    return this._value;
+  }
+
+  /**
+   * Retorna a representação textual canônica da identidade.
+   */
+  toString(): string {
+    return this._value;
+  }
+
+  /**
+   * Compara dois identificadores pelo valor encapsulado (Value Equality).
+   *
+   * Propriedades matemáticas garantidas:
+   * - Reflexividade: a.equals(a) === true.
+   * - Simetria: a.equals(b) === b.equals(a).
+   * - Transitividade: a.equals(b) && b.equals(c) => a.equals(c).
+   *
+   * @param other Outro identificador ou valor a ser comparado.
+   * @returns true se ambos possuírem o mesmo valor canônico; false se for nulo, indefinido ou diferente.
+   */
+  equals(other: EntityId<TKind> | null | undefined): boolean {
+    if (other === null || other === undefined) {
+      return false;
+    }
+
+    if (!(other instanceof EntityId)) {
+      return false;
+    }
+
+    return this._value === other._value;
+  }
+}
 
 /**
- * Operação prevista: toValue
- *
- * Objetivo:
- * Extrair o valor primitivo subjacente para uso em contratos de serialização,
- * DTOs ou adaptadores de persistência na fronteira do sistema.
- *
- * Motivação:
- * Permitir que adaptadores de infraestrutura (Prisma) e apresentação (API JSON)
- * obtenham a representação em texto puro sem quebrar o encapsulamento interno.
- *
- * Entradas previstas:
- * - Nenhuma (método de instância).
- *
- * Saída esperada:
- * - string primitiva correspondente ao identificador.
- *
- * Invariantes:
- * - A string retornada reflete fielmente o valor validado na instanciação.
- *
- * Validação futura:
- * - O valor retornado é idêntico à string primitiva sanitizada original.
- *
- * Implementação:
- * A operação deverá ser escrita imediatamente abaixo deste comentário
- * durante a etapa de desenvolvimento.
+ * Factory funcional auxiliar para construção de instâncias de EntityId.
  */
+export function createEntityId<TKind extends string>(rawValue: string): EntityId<TKind> {
+  return EntityId.from<TKind>(rawValue);
+}

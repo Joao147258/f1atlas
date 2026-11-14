@@ -22,7 +22,8 @@ Investigar comportamentos incorretos, estados inválidos, regressões, erros de 
 
 ### Arquitetura
 
-Avaliar responsabilidade, acoplamento, coesão, direção das dependências, testabilidade, modularidade e complexidade acidental.
+Avaliar responsabilidade, acoplamento, coesão, direção das dependências, testabilidade, modularidade e complexidade acidental utilizando `docs/architecture/Fundamentos/Arquitetura.MD` como referência conceitual oficial.
+Diferenciar claramente violação arquitetural comprovada de risco potencial, oportunidade de melhoria ou preferência estilística.
 Conferir se alterações que afetem módulos, pacotes, tecnologias ou limites arquiteturais foram devidamente refletidas em `docs/architecture/current-state.md` e validadas por `npm run verify:architecture`.
 
 Não impor padrões sem benefício demonstrável.
@@ -67,7 +68,7 @@ Respeitar `AGENTS.md`, `ARCHITECTURE.md`, `DESIGN.md` e `docs/development/agent-
 
 ## Fontes
 
-Consultar governança, SPECs, ADRs, código, testes, contratos, configurações e documentação.
+Consultar `docs/architecture/Fundamentos/Arquitetura.MD`, governança, SPECs, ADRs, código, testes, contratos, configurações e documentação.
 
 O comportamento implementado não é necessariamente o comportamento correto.
 

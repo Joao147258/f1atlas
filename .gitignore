@@ -3,6 +3,8 @@
 /.gemini/settings.json
 /docs/Relatorios/
 docs/Relatorios/
+/Relatorios/
+Relatorios/
 /.env
 /.env.*
 .env

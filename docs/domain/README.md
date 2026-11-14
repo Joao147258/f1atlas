@@ -91,7 +91,7 @@ A tabela abaixo resume o catálogo dos módulos da camada `packages/domain/src/`
 
 | Módulo | Documento Dedicado | Responsabilidade Principal | Arquivos e Componentes | Estado Atual |
 |---|---|---|---|---|
-| **shared** | [shared.md](./shared.md) | Primitivas transversais, Value Objects de identidade, erros de domínio e padrão Result. | `entity-id.ts`, `domain-error.ts`, `result.ts` | **Em desenvolvimento** (1 validado; 2 documentados) |
+| **shared** | [shared.md](./shared.md) | Primitivas transversais, Value Objects de identidade, erros de domínio e padrão Result. | `entity-id.ts`, `domain-error.ts`, `result.ts` | **Em desenvolvimento** (2 validados; 1 documentado) |
 | **seasons** | [seasons.md](./seasons.md) | Ciclo de vida de temporadas, transições de status e enquadramento de calendário. | `season.ts`, `season-status.ts` | **Documentado** (planejamento via comentários nível 1 e 2) |
 | **participants** | [participants.md](./participants.md) | Pilotos, equipes, construtores e inscrições temporais oficiais por temporada. | `driver.ts`, `team.ts`, `constructor.ts`, `season-entry.ts` | **Documentado** |
 | **events** | [events.md](./events.md) | Grandes Prêmios, autódromos/circuitos, sessões cronometradas e resultados oficiais. | `grand-prix.ts`, `circuit.ts`, `session.ts`, `session-entry.ts`, `session-result.ts` | **Documentado** |

@@ -47,6 +47,7 @@ O Documentation Engineer é o guardião das **fontes canônicas da verdade**: as
 
 ## Fontes normativas
 
+- `docs/architecture/Fundamentos/Arquitetura.MD` (Referência canônica de fundamentos arquiteturais, limites e vocabulário técnico do sistema).
 - `AGENTS.md` (Seção 7 — Fontes Canônicas e Resolução de Divergências; Seção 13 — Documentação e Rastreabilidade).
 - `docs/development/documentation-standard.md` — Padrão normativo de documentação.
 - `docs/development/specification-standard.md` — Norma de formatação e metadados de SPECs.

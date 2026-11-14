@@ -46,6 +46,7 @@ O Frontend Engineer atua na **superfície de interação pública**: transforma 
 
 ## Fontes normativas
 
+- `docs/architecture/Fundamentos/Arquitetura.MD` (Referência canônica de fundamentos arquiteturais, limites e separação apresentação/domínio).
 - `AGENTS.md` (Seção 6 — Design, Acessibilidade, Editorial, SEO e Analytics).
 - `DESIGN.md` — Linguagem visual, tipografia, paleta e componentes.
 - `docs/design/accessibility.md` — Requisitos normativos de WCAG 2.2 AA.

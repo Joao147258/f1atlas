@@ -15,6 +15,7 @@ O Developer atua na **orquestração técnica da implementação**: não substit
 ## Responsabilidades
 
 - Implementar fatias verticais completas orientadas por SPECs (`implement-feature`).
+- Consultar `docs/architecture/Fundamentos/Arquitetura.MD` sempre que a implementação puder impactar responsabilidades modulares, dependências ou limites entre camadas.
 - Coordenar integrações entre módulos e camadas (`packages/domain` → `apps/api` → `packages/contracts` → UI).
 - Integrar adaptadores de infraestrutura e portas da aplicação sem contaminar o domínio.
 - Corrigir defeitos em nível de causa raiz com testes de regressão associados.
@@ -49,6 +50,7 @@ O Developer atua na **orquestração técnica da implementação**: não substit
 
 ## Fontes normativas
 
+- `docs/architecture/Fundamentos/Arquitetura.MD` (Referência canônica de fundamentos arquiteturais, limites e trade-offs).
 - `AGENTS.md` (Seção 3 — Backend First e Evolução Incremental).
 - `ARCHITECTURE.md` (Monólito Modular, DDD e Ports & Adapters).
 - SPECs de produto e engenharia em `docs/specs/`.

@@ -47,6 +47,7 @@ O Security Auditor atua na **auditoria preventiva e defesa em profundidade**: op
 
 ## Fontes normativas
 
+- `docs/architecture/Fundamentos/Arquitetura.MD` (Compreensão de fronteiras de confiança, limites modulares e isolamento de operações).
 - `AGENTS.md` (Seção 12 — Segurança e Limites Públicos de Operação).
 - `docs/specs/engineering/SPEC-SEC-001.md` — Especificação de segurança da informação e segredos.
 - `docs/development/security-governance.md` — Política de governança de segurança do F1Atlas.

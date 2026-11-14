@@ -17,8 +17,7 @@
  *   (title sponsors), enquanto a linhagem técnica do construtor permanece estável.
  *
  * Relacionamentos:
- * - Possui um `TeamId` único.
- * - Associa-se ao `Constructor` técnico responsável pelo chassi daquele período.
+ * - Possui um `TeamId` único (`EntityId<'team'>`).
  * - Participa de temporadas através de instâncias de `SeasonEntry`.
  * - Referenciada nas inscrições de sessão (`SessionEntry`) e resultados (`SessionResult`).
  * - Não deve ser confundida com a identidade histórica duradoura do construtor.
@@ -29,47 +28,132 @@
  * - Controlar a vigência temporal de suas inscrições comerciais.
  *
  * Restrições e Invariantes:
- * - O nome oficial da equipe não pode ser vazio.
- * - Toda equipe em competição deve estar associada a pelo menos um `Constructor` válido.
- *
- * Decisões Pendentes:
- * - Avaliar se a entidade `Team` deve ser modelada como uma entidade efêmera por temporada
- *   ou se deve manter uma árvore de linhagem histórica (ex.: linhagem Jordan -> Midland -> Spyker -> Force India -> Racing Point -> Aston Martin).
- *   A separação explícita entre Team (comercial) e Constructor (técnico) resolve a maior parte dessa complexidade.
+ * - O identificador deve ser um EntityId<'team'> válido.
+ * - A razão social (legalName) e a denominação comercial (commercialName) são obrigatórias e não vazias.
+ * - A nacionalidade de filiação desportiva é obrigatória e não vazia.
  *
  * ============================================================================
  */
 
+import { EntityId } from '../shared/entity-id.ts';
+import { DomainError, DomainErrorCode } from '../shared/domain-error.ts';
+import { Result } from '../shared/result.ts';
+
 /**
- * Operação prevista: createTeam
- *
- * Objetivo:
- * Instanciar uma equipe comercial vinculada a um construtor técnico e país de licença.
- *
- * Motivação:
- * Representar fielmente os competidores oficiais conforme as listas de inscritos da FIA.
- *
- * Entradas previstas:
- * - id: TeamId.
- * - officialName: nome comercial completo registrado (ex.: "Scuderia Ferrari HP").
- * - constructorId: ConstructorId do fabricante do chassi.
- * - country: país da licença desportiva de competidor.
- *
- * Saída esperada:
- * - Result<Team, DomainError>.
- *
- * Regras:
- * - O nome oficial deve ser válido e não vazio.
- * - O constructorId é obrigatório.
- *
- * Invariantes:
- * - O vínculo com o construtor é estabelecido na criação.
- *
- * Validação futura:
- * - Criação com parâmetros válidos retorna instância com propriedades esperadas.
- * - Criação sem constructorId retorna erro de integridade referencial.
- *
- * Implementação:
- * A operação deverá ser escrita imediatamente abaixo deste comentário
- * durante a etapa de desenvolvimento.
+ * Propriedades para criação da entidade Team.
  */
+export interface CreateTeamProps {
+  readonly id: EntityId<'team'>;
+  readonly legalName: string;
+  readonly commercialName: string;
+  readonly nationality: string;
+  readonly baseLocation?: string | null;
+  readonly foundedYear?: number | null;
+}
+
+/**
+ * Entidade de Domínio representando uma Equipe Comercial / Concorrente (Entrant) na Fórmula 1.
+ */
+export class Team {
+  readonly id: EntityId<'team'>;
+  readonly legalName: string;
+  readonly commercialName: string;
+  readonly nationality: string;
+  readonly baseLocation?: string | null;
+  readonly foundedYear?: number | null;
+
+  private constructor(props: CreateTeamProps) {
+    this.id = props.id;
+    this.legalName = props.legalName.trim();
+    this.commercialName = props.commercialName.trim();
+    this.nationality = props.nationality.trim();
+    this.baseLocation = props.baseLocation !== undefined && props.baseLocation !== null ? props.baseLocation.trim() : null;
+    this.foundedYear = props.foundedYear !== undefined ? props.foundedYear : null;
+
+    Object.freeze(this);
+  }
+
+  /**
+   * Compara igualdade de identidade com outro objeto.
+   */
+  public equals(other: unknown): boolean {
+    if (!(other instanceof Team)) {
+      return false;
+    }
+    return this.id.equals(other.id);
+  }
+
+  /**
+   * Factory para criação e validação rigorosa de instâncias da entidade Team.
+   *
+   * @param props Propriedades da equipe a ser instanciada.
+   * @returns Result contendo a entidade Team ou DomainError caso alguma invariante seja violada.
+   */
+  public static create(props: CreateTeamProps): Result<Team, DomainError> {
+    if (!props || typeof props !== 'object') {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Parâmetros obrigatórios de Team não foram fornecidos.'
+        )
+      );
+    }
+
+    if (!props.id || !(props.id instanceof EntityId)) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Identificador da equipe (id) deve ser um EntityId<"team"> válido.'
+        )
+      );
+    }
+
+    if (!props.legalName || typeof props.legalName !== 'string' || props.legalName.trim().length === 0) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Razão social (legalName) da equipe é obrigatória e não pode ser vazia.'
+        )
+      );
+    }
+
+    if (!props.commercialName || typeof props.commercialName !== 'string' || props.commercialName.trim().length === 0) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Nome comercial (commercialName) da equipe é obrigatório e não pode ser vazio.'
+        )
+      );
+    }
+
+    if (!props.nationality || typeof props.nationality !== 'string' || props.nationality.trim().length === 0) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Nacionalidade (nationality) da equipe é obrigatória e não pode ser vazia.'
+        )
+      );
+    }
+
+    if (props.foundedYear !== undefined && props.foundedYear !== null) {
+      if (!Number.isInteger(props.foundedYear) || props.foundedYear < 1900 || props.foundedYear > 2100) {
+        return Result.fail(
+          new DomainError(
+            DomainErrorCode.INVALID_ARGUMENT,
+            `Ano de fundação da equipe deve ser um número inteiro entre 1900 e 2100. Recebido: ${props.foundedYear}.`,
+            { foundedYear: props.foundedYear }
+          )
+        );
+      }
+    }
+
+    return Result.ok(new Team(props));
+  }
+}
+
+/**
+ * Função funcional de conveniência para criação da entidade Team.
+ */
+export function createTeam(props: CreateTeamProps): Result<Team, DomainError> {
+  return Team.create(props);
+}

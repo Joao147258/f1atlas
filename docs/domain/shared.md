@@ -37,8 +37,8 @@ O módulo **`shared`** fornece as abstrações fundamentais e tipos base compart
 
 | Arquivo TypeScript | Conceito Representado | Responsabilidade Arquitetural | Estado Atual |
 |---|---|---|---|
-| `shared/entity-id.ts` | Identidade de Entidade | Encapsular um valor primitivo imutável e sanitizado para identificação durável de entidades de domínio. | **Planejado** (planejamento via comentários nível 1 e 2) |
-| `shared/domain-error.ts` | Erro de Regra de Negócio | Representar falhas de invariantes e regras esportivas com mensagem compreensível, código semântico e contexto imutável. | **Implementado** (classe base `DomainError`, factory `createDomainError`, códigos semânticos e type guard `isDomainError`) |
+| `shared/entity-id.ts` | Identidade de Entidade | Encapsular um valor primitivo imutável e validado para identificação durável de entidades de domínio via Phantom Types. | **Validado** (classe genérica `EntityId<TKind>`, factories `from` e `createEntityId`, `equals`, `value`, `toValue`, `toString`) |
+| `shared/domain-error.ts` | Erro de Regra de Negócio | Representar falhas de invariantes e regras esportivas com mensagem compreensível, código semântico e contexto imutável. | **Validado** (classe base `DomainError`, factory `createDomainError`, códigos semânticos e type guard `isDomainError`) |
 | `shared/result.ts` | Padrão Result (Either) | Encapsular o sucesso (`ok`) ou fracasso (`fail`) de operações com canal tipado de erro. | **Planejado** (planejamento via comentários nível 1 e 2) |
 
 ---
@@ -85,20 +85,26 @@ Para prevenir a degradação arquitetural, toda inclusão em `shared` deve satis
 
 ## 6. Operações e Comportamentos
 
-### 6.1. Operações de `entity-id.ts` (Planejadas)
-- `createEntityId(rawValue: string): Result<EntityId, DomainError>`: Valida e sanitiza uma string não vazia encapsulando-a em uma identidade.
-- `equals(other?: EntityId): boolean`: Compara a igualdade durável entre duas identidades por valor.
-- `toValue(): string`: Extrai o primitivo bruto sanitizado para persistência ou serialização de contratos.
+### 6.1. Operações de `entity-id.ts` (Implementadas e Validadas)
+- `EntityId.from<TKind>(rawValue: string): EntityId<TKind>`: Constrói e valida uma nova identidade tipada imutável, garantindo não-vacuidade e ausência de espaços externos. Lança `DomainError` em caso de violação de invariante.
+- `createEntityId<TKind>(rawValue: string): EntityId<TKind>` / `EntityId.createEntityId`: Fábricas auxiliares equivalentes a `EntityId.from`.
+- `equals(other: EntityId<TKind> | null | undefined): boolean`: Compara a igualdade estrutural entre duas identidades por valor com preservação de reflexividade, simetria e transitividade.
+- `value`: Getter que expõe o valor primitivo canônico.
+- `toValue(): string`: Extrai o primitivo bruto para persistência, contratos de serialização ou DTOs.
+- `toString(): string`: Retorna a representação textual canônica da identidade.
 
 ### 6.2. Operações de `domain-error.ts` (Implementadas)
 - `new DomainError(code, message, context?)`: Criação direta de erro herdando nativamente de `Error` com `name` preservado e stack trace limpo.
 - `createDomainError(code, message, context?): DomainError`: Fábrica declarativa para padronizar erros de regras de negócio.
 - `isDomainError(error: unknown): error is DomainError`: Predicado de tipo seguro em runtime para diferenciar erros de domínio de exceções técnicas genéricas.
 
-### 6.3. Operações de `result.ts` (Planejadas)
-- `Result.ok<T>(value: T): Result<T, never>`: Cria um container indicando sucesso operacional com valor associado.
-- `Result.fail<E>(error: E): Result<never, E>`: Cria um container indicando falha operacional com erro de domínio associado.
-- `Result.combine(results: Result<unknown, unknown>[]): Result<void, DomainError>`: Avalia um array de validações, retornando o primeiro erro encontrado ou sucesso consolidado.
+### 6.3. Operações de `result.ts` (Implementadas e Validadas)
+- `Result.ok<T, E>(value?: T): Result<T, E>`: Cria um container indicando sucesso operacional com valor associado (suporta tipos primitivos, objetos complexos ou void/undefined).
+- `Result.fail<E, T>(error: E): Result<T, E>`: Cria um container indicando falha operacional com erro de domínio ou erro especializado associado.
+- `Result.combine<T, E>(results: Result<T, E>[]): Result<T[], E>`: Avalia um array de validações, retornando o primeiro erro encontrado de forma determinística ou um array com os valores agregados em ordem.
+- `getValue(): T` / getter `value`: Acesso seguro e defensivo ao valor em caso de sucesso; lança `Error` explícito em falha.
+- `getError(): E` / getter `error`: Acesso seguro e defensivo ao erro em caso de falha; lança `Error` explícito em sucesso.
+- `isSuccess: boolean` / `isFailure: boolean`: Indicadores booleanos mutuamente exclusivos de estado.
 
 ---
 
@@ -106,19 +112,21 @@ Para prevenir a degradação arquitetural, toda inclusão em `shared` deve satis
 
 ### Criação e Validação com `DomainError` e `Result`:
 ```typescript
-// Exemplo conceitual da utilização conjunta dos elementos de shared
-import { createDomainError, DomainErrorCode } from './domain-error.js';
+import { Result } from './result.ts';
+import { DomainError, DomainErrorCode } from './domain-error.ts';
 
-// Caso uma regra de negócio de inscrição seja violada:
-export function validarNumeroCarro(numero: number, ehCampeaoVigente: boolean) {
+// Operação de domínio que retorna Result explicitando sucesso ou falha:
+export function validarNumeroCarro(numero: number, ehCampeaoVigente: boolean): Result<void, DomainError> {
   if (numero === 1 && !ehCampeaoVigente) {
-    return createDomainError(
-      DomainErrorCode.OPERATION_NOT_ALLOWED,
-      'O número 1 é reservado exclusivamente ao campeão mundial vigente.',
-      { numero, ehCampeaoVigente }
+    return Result.fail(
+      new DomainError(
+        DomainErrorCode.OPERATION_NOT_ALLOWED,
+        'O número 1 é reservado exclusivamente ao campeão mundial vigente.',
+        { numero, ehCampeaoVigente }
+      )
     );
   }
-  return null;
+  return Result.ok();
 }
 ```
 
@@ -127,8 +135,6 @@ export function validarNumeroCarro(numero: number, ehCampeaoVigente: boolean) {
 ## 8. Decisões Arquiteturais e Pendências
 
 1. **Brand Types vs. Value Object Class em `EntityId`:**  
-   *Alternativa A:* Classes oferecem encapsulamento de métodos (`equals`, `toValue`) e validação em tempo de execução, ao custo de um pequeno overhead de objeto.  
-   *Alternativa B:* Brand Types do TypeScript (`type DriverId = string & { readonly __brand: unique symbol }`) oferecem zero overhead de runtime, mas dependem de funções puras externas para validação e comparação.  
-   *Decisão Pendente:* Avaliar na implementação se manteremos a classe `EntityId` ou migraremos para branded primitives.
+   *Decisão Consolidada:* Implementado como classe Value Object com phantom type (`declare private readonly __kind?: TKind`), assegurando encapsulamento, validação e métodos estruturais em runtime sem custo de propriedades brand alocadas.
 2. **Interface Funcional Monádica vs. Procedural em `Result`:**  
-   *Decisão Pendente:* Decidir se implementaremos encadeamento funcional (`.map()`, `.flatMap()`, `.match()`) ou métodos imperativos simples (`.getValue()`, `.getError()`, `.isSuccess()`). Recomenda-se iniciar com a interface simples para manter a curva de aprendizado baixa e evoluir se a complexidade justificar.
+   *Decisão Consolidada:* Adotada interface procedural simples, ergonômica e defensiva (`getValue()`, `getError()`, `value`, `error`, `isSuccess`, `isFailure` e `combine`), evitando sobrecarga cognitiva e complexidade monádica desnecessária nesta fase de bootstrap. Invariantes de imutabilidade e exclusividade plenamente garantidos via `Object.freeze`.

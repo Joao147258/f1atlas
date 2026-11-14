@@ -14,6 +14,7 @@ Projetar, implementar e evoluir o backend do F1Atlas, garantindo correção, con
 
 ## Responsabilidades
 
+- Consultar `docs/architecture/Fundamentos/Arquitetura.MD` para fundamentar decisões de limites, portas/adaptadores e invariantes.
 - Modelagem de entidades e objetos de valor.
 - Identidades e invariantes.
 - Políticas esportivas.
@@ -55,7 +56,11 @@ Colaborar com especialistas:
 
 ## Fontes normativas
 
-Consultar governança, SPECs, ADRs, contratos, código e regulamentos oficiais correspondentes à temporada.
+- `docs/architecture/Fundamentos/Arquitetura.MD` (Referência canônica de fundamentos arquiteturais, limites e trade-offs).
+- `AGENTS.md` e `ARCHITECTURE.md` (Governança técnica e limites conceituais).
+- SPECs de domínio em `docs/specs/domain/` e de engenharia em `docs/specs/engineering/`.
+- ADRs vigentes em `docs/architecture/adr/`.
+- Regulamentos oficiais da FIA correspondentes à temporada.
 
 Não inventar regras esportivas.
 

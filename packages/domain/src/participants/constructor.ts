@@ -17,8 +17,8 @@
  *   que detém os direitos de propriedade intelectual e responsabilidade do chassi.
  *
  * Relacionamentos:
- * - Possui um `ConstructorId` único e duradouro no tempo.
- * - Vincula-se a equipes comerciais (`Team`) que operam o chassi na pista.
+ * - Possui um `ConstructorId` único e duradouro no tempo (`EntityId<'constructor'>`).
+ * - Vincula-se a equipes comerciais (`Team`) que operam o chassi na pista via `SeasonEntry`.
  * - Pontuado diretamente nas classificações de construtores em `ConstructorStandings`.
  * - Não deve ser modificado a cada troca de patrocinador titular.
  *
@@ -29,44 +29,110 @@
  *
  * Restrições e Invariantes:
  * - O nome canônico do construtor é imutável e obrigatório.
+ * - A nacionalidade técnica do fabricante é obrigatória.
  * - O construtor é a única entidade elegível para acumular pontos no campeonato de construtores.
- *
- * Decisões Pendentes:
- * - Mapeamento de construtores históricos compostos por combinações chassi-motor
- *   (ex.: "McLaren-Honda", "Williams-Renault", "Lotus-Climax") comuns em eras anteriores a 1981.
- *   Para a era moderna (incluindo 2025), o construtor é identificado pelo fabricante do chassi.
  *
  * ============================================================================
  */
 
+import { EntityId } from '../shared/entity-id.ts';
+import { DomainError, DomainErrorCode } from '../shared/domain-error.ts';
+import { Result } from '../shared/result.ts';
+
 /**
- * Operação prevista: createConstructor
- *
- * Objetivo:
- * Instanciar um construtor técnico oficial do campeonato mundial.
- *
- * Motivação:
- * Criar a identidade duradoura necessária para atribuição e acúmulo de pontos no WCC.
- *
- * Entradas previstas:
- * - id: ConstructorId.
- * - name: denominação técnica canônica (ex.: "McLaren").
- * - nationality: país de origem do fabricante.
- *
- * Saída esperada:
- * - Result<Constructor, DomainError>.
- *
- * Regras:
- * - O nome não pode ser vazio e deve ser único na base histórica.
- *
- * Invariantes:
- * - ConstructorId e nome canônico são preservados.
- *
- * Validação futura:
- * - Criação com dados válidos retorna instância pronta para acumular pontos no WCC.
- * - Nome vazio retorna erro de validação de domínio.
- *
- * Implementação:
- * A operação deverá ser escrita imediatamente abaixo deste comentário
- * durante a etapa de desenvolvimento.
+ * Propriedades para criação da entidade Constructor.
  */
+export interface CreateConstructorProps {
+  readonly id: EntityId<'constructor'>;
+  readonly name: string;
+  readonly nationality: string;
+  readonly chassis?: string | null;
+  readonly engineManufacturer?: string | null;
+}
+
+/**
+ * Entidade de Domínio representando um Construtor Oficial homologado pela FIA.
+ */
+export class Constructor {
+  readonly id: EntityId<'constructor'>;
+  readonly name: string;
+  readonly nationality: string;
+  readonly chassis?: string | null;
+  readonly engineManufacturer?: string | null;
+
+  private constructor(props: CreateConstructorProps) {
+    this.id = props.id;
+    this.name = props.name.trim();
+    this.nationality = props.nationality.trim();
+    this.chassis = props.chassis !== undefined && props.chassis !== null ? props.chassis.trim() : null;
+    this.engineManufacturer =
+      props.engineManufacturer !== undefined && props.engineManufacturer !== null
+        ? props.engineManufacturer.trim()
+        : null;
+
+    Object.freeze(this);
+  }
+
+  /**
+   * Compara igualdade de identidade com outro objeto.
+   */
+  public equals(other: unknown): boolean {
+    if (!(other instanceof Constructor)) {
+      return false;
+    }
+    return this.id.equals(other.id);
+  }
+
+  /**
+   * Factory para criação e validação rigorosa de instâncias da entidade Constructor.
+   *
+   * @param props Propriedades do construtor a ser instanciado.
+   * @returns Result contendo a entidade Constructor ou DomainError caso alguma invariante seja violada.
+   */
+  public static create(props: CreateConstructorProps): Result<Constructor, DomainError> {
+    if (!props || typeof props !== 'object') {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Parâmetros obrigatórios de Constructor não foram fornecidos.'
+        )
+      );
+    }
+
+    if (!props.id || !(props.id instanceof EntityId)) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Identificador do construtor (id) deve ser um EntityId<"constructor"> válido.'
+        )
+      );
+    }
+
+    if (!props.name || typeof props.name !== 'string' || props.name.trim().length === 0) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Nome técnico do construtor (name) é obrigatório e não pode ser vazio.'
+        )
+      );
+    }
+
+    if (!props.nationality || typeof props.nationality !== 'string' || props.nationality.trim().length === 0) {
+      return Result.fail(
+        new DomainError(
+          DomainErrorCode.INVALID_ARGUMENT,
+          'Nacionalidade técnica do construtor (nationality) é obrigatória e não pode ser vazia.'
+        )
+      );
+    }
+
+    return Result.ok(new Constructor(props));
+  }
+}
+
+/**
+ * Função funcional de conveniência para criação da entidade Constructor.
+ */
+export function createConstructor(props: CreateConstructorProps): Result<Constructor, DomainError> {
+  return Constructor.create(props);
+}

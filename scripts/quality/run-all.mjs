@@ -91,7 +91,12 @@ export function runQualityGates({
   delete cleanEnv.NODE_TEST_CONTEXT;
   delete cleanEnv.NODE_TEST_WORKER_ID;
 
-  const testExecution = spawnSync(process.execPath, ['--test', 'scripts/tests/*.test.mjs', 'packages/domain/test/**/*.test.ts'], {
+  const testExecution = spawnSync(process.execPath, [
+    '--test',
+    'scripts/tests/*.test.mjs',
+    'packages/domain/test/**/*.test.ts',
+    'packages/contracts/test/**/*.test.ts'
+  ], {
     cwd: workspaceRoot,
     stdio: 'inherit',
     env: cleanEnv
@@ -103,8 +108,8 @@ export function runQualityGates({
   }
 
   executionResults.push({
-    name: 'Testes automatizados (harness + domínio)',
-    script: 'scripts/tests/*.test.mjs, packages/domain/test/**/*.test.ts',
+    name: 'Testes automatizados (harness + domínio + contratos)',
+    script: 'scripts/tests/*.test.mjs, packages/domain/test/**/*.test.ts, packages/contracts/test/**/*.test.ts',
     status: testStatus
   });
 

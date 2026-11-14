@@ -17,7 +17,7 @@
 | **Projeto** | F1Atlas (anteriormente F12027 durante o bootstrap) |
 | **Natureza** | Plataforma Digital Independente de Automobilismo (Fórmula 1) |
 | **Finalidade do Documento** | Retrato arquitetural vivo do repositório, servindo de fonte canônica para desenvolvedores e agentes de IA sobre o estado real da implementação, dependências, fronteiras e decisões ativas. |
-| **Fase do Projeto** | Transição entre **M0 (Fundação Arquitetural e Governança)** e **M1 (Modelo de Domínio Fundamental)** |
+| **Fase do Projeto** | Conclusão e Homologação de **M1 (Modelo de Domínio Fundamental)**, **M2 (Regulamentos, Pontuação e Campeonatos)** e **M2.1 (Integração e Consistência Transversal do Domínio)** |
 | **Mecanismo de Manutenção** | Atualização contínua obrigatória pelo fluxo em 6 etapas dos agentes e verificador mecânico automatizado (`scripts/architecture/verify-current-state.mjs`). |
 
 ---
@@ -36,7 +36,7 @@ $$\text{Problema} \longrightarrow \text{Regras e Invariantes} \longrightarrow \t
 | **Isolamento do Domínio** | **Efetivamente Verificado** | O domínio reside no pacote independente `packages/domain` (ADR-0003), sem qualquer dependência de frameworks web, ORMs ou transporte. Verificado mecanicamente por `scripts/architecture/verify-boundaries.mjs`. |
 | **Persistência Desacoplada** | **Efetivamente Verificado (Foundation)** | Configurada em `apps/api/src/infrastructure/database/prisma/` com Prisma ORM 7 e driver adapter MariaDB. Modelos isolados do domínio através de portas e mappers (ADR-0002). |
 | **Clean Architecture / Portas e Adaptadores** | **Implementação Parcial (Foundation)** | Porta `infrastructure-health-repository.port.ts` e adaptador Prisma implementados em `apps/api`. Casos de uso esportivos ainda não implementados. |
-| **Domain-Driven Design (DDD)** | **Estruturado e Planejado** | Módulos conceituais e agregados desenhados e documentados em `packages/domain/src/`. Apenas o componente compartilhado `DomainError` está implementado e validado com testes no momento. |
+| **Domain-Driven Design (DDD)** | **Efetivamente Verificado** | Módulos `shared`, `seasons`, `participants`, `events`, `scoring` e `championships` 100% implementados e validados com 382 testes, cobertura >99% e 100% Mutation Testing. Apenas `simulations` permanece como planejado. |
 | **Frontend Precision Motorsport Editorial** | **Apenas Planejado** | Diretrizes visuais e de UX especificadas em `DESIGN.md`. A aplicação `apps/web` ainda não possui código executável. |
 
 ---
@@ -112,8 +112,8 @@ F12027-harness-v0.2/
 |---|---|---|---|---|
 | **API Backend** | `apps/api` | Servir dados esportivos via HTTP REST, orquestrar casos de uso, autenticação e persistência. | **Foundation Operacional:** Módulo raiz NestJS, configuração Prisma 7, ciclo de vida de conexões MariaDB e health-check. Sem controllers ou rotas esportivas. | NestJS 11.2, Prisma ORM 7.10.1, MariaDB 3.5, TypeScript 5.9 |
 | **Frontend Web** | `apps/web` | Portal público interativo, exploração de dados históricos, visualização de narrativas e simulações. | **Não Iniciado:** Apenas diretório estrutural com `.gitkeep`. Regras visuais documentadas em `DESIGN.md`. | Nenhuma dependência instalada no momento. |
-| **Domain** | `packages/domain` | Regras desportivas puras, invariantes da FIA, cálculo determinístico de pontuação, desempates e simulações. | **Em Desenvolvimento Ativo:** 7 módulos estruturados; `domain-error.ts` 100% implementado e validado com testes unitários, cobertura e mutation testing; 21 componentes documentados via comentários. | TypeScript puro, Node.js Test Runner (`node:test`, `node:assert/strict`) |
-| **Contracts** | `packages/contracts` | DTOs tipados compartilhados, schemas JSON de API, contratos de integração e catálogo de eventos. | **Foundation Inicial:** `analytics.mjs` implementado com validações de eventos e privacidade (sem PII). DTOs esportivos planejados. | JavaScript ESM nativo |
+| **Domain** | `packages/domain` | Regras desportivas puras, invariantes da FIA, cálculo determinístico de pontuação, desempates e simulações. | **Em Desenvolvimento Ativo:** 7 módulos conceituais estruturados; módulos `shared` (3/3), `seasons` (2/2), `participants` (4/4) e `events` (5/5) 100% validados; 333 testes automatizados no domínio com 99.48% de cobertura e 100% de mutação (62/62 mutantes eliminados); 8 componentes documentados via comentários. | TypeScript puro, Node.js Test Runner (`node:test`, `node:assert/strict`) |
+| **Contracts** | `packages/contracts` | DTOs tipados compartilhados, schemas Zod em runtime, erros RFC 7807, paginação e telemetria. | **Validado e Operacional:** Contratos Zod para Drivers, Teams, Constructors, Seasons, Grand Prix, Standings (WDC/WCC), ApiError e Pagination validados com 34 testes automatizados e typecheck estrito; telemetria (analytics.mjs) preservada. | TypeScript 5.9, Zod 3.24, Node.js Test Runner |
 | **Governança & Scripts** | `scripts/` | Garantir conformidade mecânica contínua, limites arquiteturais, segurança e qualidade de testes. | **Totalmente Operacional:** 15 quality gates públicos integrados via `npm run verify` e suite de 118 testes automatizados. | Node.js v24 ESM nativo |
 
 ---
@@ -126,7 +126,7 @@ F12027-harness-v0.2/
 flowchart TD
     Web["apps/web (Frontend)<br/>[Planejado]"]
     API["apps/api (Backend NestJS)<br/>[Foundation Operacional]"]
-    Contracts["packages/contracts (Contratos)<br/>[Parcial: Analytics]"]
+    Contracts["packages/contracts (Contratos)<br/>[Validado: Schemas Zod + Analytics]"]
     Domain["packages/domain (Regras de Domínio)<br/>[Isolado: TypeScript Puro]"]
     DB[("MariaDB / MySQL<br/>[Schema Prisma 7]")]
 
@@ -142,7 +142,7 @@ flowchart TD
 
     class API partial;
     class Domain partial;
-    class Contracts partial;
+    class Contracts implemented;
     class DB implemented;
     class Web planned;
 ```
@@ -189,13 +189,13 @@ O domínio é estruturado em **7 módulos conceituais**, agrupando agregados, en
 
 | Módulo | Documento Especializado | Responsabilidade Principal | Componentes Estruturados | Estado Atual |
 |---|---|---|---|---|
-| **`shared`** | [`docs/domain/shared.md`](../domain/shared.md) | Primitivas compartilhadas, tratamento de erros semântico e mônadas. | `domain-error.ts`, `entity-id.ts`, `result.ts` | **Em Desenvolvimento:** `domain-error.ts` implementado e validado com 19 testes; `entity-id.ts` e `result.ts` documentados. |
-| **`seasons`** | [`docs/domain/seasons.md`](../domain/seasons.md) | Calendário da temporada, ciclo de homologação de etapas e regras vigentes. | `season.ts`, `season-status.ts` | **Documentado:** Planejado via comentários níveis 1 e 2. |
-| **`participants`** | [`docs/domain/participants.md`](../domain/participants.md) | Identidades duráveis de competidores e contratos temporais. | `driver.ts`, `team.ts`, `constructor.ts`, `season-entry.ts` | **Documentado:** Invariantes temporais desenhadas. |
-| **`events`** | [`docs/domain/events.md`](../domain/events.md) | Grandes Prêmios, circuitos, sessões cronometradas e resultados de pista. | `circuit.ts`, `grand-prix.ts`, `session.ts`, `session-entry.ts`, `session-result.ts` | **Documentado:** Ciclo de homologação de resultados planejado. |
-| **`scoring`** | [`docs/domain/scoring.md`](../domain/scoring.md) | Motor determinístico de cálculo de pontos da FIA e desempates (*countback*). | `scoring-ruleset.ts`, `points-calculator.ts`, `tie-break-policy.ts` | **Documentado:** Regra 2025 (volta rápida = 0) planejada. |
-| **`championships`** | [`docs/domain/championships.md`](../domain/championships.md) | Apuração acumulada de pontuações de pilotos (WDC) e construtores (WCC). | `driver-standings.ts`, `constructor-standings.ts`, `standings-calculator.ts` | **Documentado:** Acumuladores e variações de grid planejados. |
-| **`simulations`** | [`docs/domain/simulations.md`](../domain/simulations.md) | Simulações determinísticas de cenários sem violar dados históricos. | `championship-scenario.ts`, `scenario-evaluator.ts` | **Documentado:** Isolamento estrito de resultados simulados. |
+| **`shared`** | [`docs/domain/shared.md`](../domain/shared.md) | Primitivas compartilhadas, tratamento de erros semântico e mônadas. | `domain-error.ts`, `entity-id.ts`, `result.ts` | **Validado:** 100% implementado e validado (`domain-error.ts`, `entity-id.ts` e `result.ts`). |
+| **`seasons`** | [`docs/domain/seasons.md`](../domain/seasons.md) | Calendário da temporada, ciclo de homologação de etapas e regras vigentes. | `season.ts`, `season-status.ts`, `season-event-validator.ts` | **Validado:** 100% implementado e validado (`season.ts`, `season-status.ts`, `season-event-validator.ts`). |
+| **`participants`** | [`docs/domain/participants.md`](../domain/participants.md) | Identidades duráveis de competidores e contratos temporais. | `driver.ts`, `team.ts`, `constructor.ts`, `season-entry.ts`, `entry-role.ts` | **Validado:** 100% implementado e validado (`driver.ts`, `team.ts`, `constructor.ts`, `season-entry.ts`, `entry-role.ts`). |
+| **`events`** | [`docs/domain/events.md`](../domain/events.md) | Grandes Prêmios, circuitos, sessões cronometradas e resultados de pista. | `circuit.ts`, `grand-prix.ts`, `session.ts`, `session-entry.ts`, `session-result.ts`, `session-participant-validator.ts` | **Validado:** 100% implementado e validado (`circuit.ts`, `grand-prix.ts`, `session.ts`, `session-entry.ts`, `session-result.ts`, `session-participant-validator.ts`). |
+| **`scoring`** | [`docs/domain/scoring.md`](../domain/scoring.md) | Motor determinístico de cálculo de pontos da FIA e desempates (*countback*). | `scoring-ruleset.ts`, `points-calculator.ts`, `tie-break-policy.ts` | **Validado:** 100% implementado e validado (`scoring-ruleset.ts`, `points-calculator.ts`, `tie-break-policy.ts`). |
+| **`championships`** | [`docs/domain/championships.md`](../domain/championships.md) | Apuração acumulada de pontuações de pilotos (WDC) e construtores (WCC). | `driver-standings.ts`, `constructor-standings.ts`, `standings-calculator.ts` | **Validado:** 100% implementado e validado (`driver-standings.ts`, `constructor-standings.ts`, `standings-calculator.ts`). |
+| **`simulations`** | [`docs/domain/simulations.md`](../domain/simulations.md) | Simulações determinísticas de cenários sem violar dados históricos. | `championship-scenario.ts`, `scenario-evaluator.ts` | **Documentado:** Isolamento estrito de resultados simulados (`INV-CH-05`). |
 
 ---
 
@@ -271,19 +271,19 @@ O F1Atlas possui uma robusta infraestrutura de verificação automatizada, gover
 
 | Mecanismo de Teste | Script Verificador | Comando | Estado Atual | Evidências / Métricas |
 |---|---|---|---|---|
-| **Testes Unitários de Domínio** | `node:test` nativo | `npm run test:domain` | **Ativo** | 19 testes unitários em `domain-error.test.ts` (100% aprovados em ~290ms). |
-| **Integridade e Antifrágilidade** | `scripts/quality/verify-test-quality.mjs` | `npm run test:quality` | **Ativo** | 8 suítes auditadas contra testes vazios, sem asserções, com skips sem justificativa ou catches mascaradores. |
-| **Cobertura de Código** | `scripts/quality/verify-test-coverage.mjs` | `npm run test:coverage` | **Ativo** | Linhas: **100%** (alvo $\ge 90\%$), Branches: **93.75%** (alvo $\ge 85\%$), Funções: **100%** (alvo $\ge 90\%$). |
-| **Mutation Testing** | `scripts/quality/verify-mutation-quality.mjs` | `npm run test:mutation` | **Ativo** | **100.0% de score** (7 de 7 mutantes semânticos eliminados; alvo $\ge 80\%$). |
+| **Testes Unitários de Domínio** | `node:test` nativo | `npm run test:domain` | **Ativo** | 459 testes automatizados cobrindo `shared`, `seasons`, `participants`, `events`, `scoring`, `championships` e integração transversal (100% aprovados). |
+| **Integridade e Antifrágilidade** | `scripts/quality/verify-test-quality.mjs` | `npm run test:quality` | **Ativo** | 49 suítes auditadas contra testes vazios, sem asserções, com skips sem justificativa ou catches mascaradores. |
+| **Cobertura de Código** | `scripts/quality/verify-test-coverage.mjs` | `npm run test:coverage` | **Ativo** | Linhas: **99.59%** (alvo $\ge 90\%$), Branches: **97.18%** (alvo $\ge 85\%$), Funções: **100.0%** (alvo $\ge 90\%$). |
+| **Mutation Testing** | `scripts/quality/verify-mutation-quality.mjs` | `npm run test:mutation` | **Ativo** | **100.0% de score** (73 de 73 mutantes semânticos eliminados; alvo $\ge 80\%$). |
 | **Testes de Persistência** | `apps/api/src/.../prisma-service.spec.ts` | `npm run db:verify` | **Ativo** | Validação em runtime de compilação, conexão com adapter MariaDB e encerramento. |
-| **Testes de Governança** | `scripts/tests/*.test.mjs` | `npm run test:harness` | **Ativo** | 99 testes automatizados cobrindo segurança, envs, regras de agentes, SPECs e scripts de teste. |
-| **Orquestrador Central** | `scripts/quality/run-all.mjs` | `npm run verify` | **Ativo** | 15 gates sequenciais (13 PASS, 2 SKIP justificados, 0 FAIL). |
+| **Testes de Governança** | `scripts/tests/*.test.mjs` | `npm run test:harness` | **Ativo** | 110 testes automatizados cobrindo segurança, envs, regras de agentes, SPECs e scripts de teste. |
+| **Orquestrador Central** | `scripts/quality/run-all.mjs` | `npm run verify` | **Ativo** | 16 gates sequenciais (14 PASS, 2 SKIP justificados, 0 FAIL) cobrindo 603 testes automatizados consolidados. |
 
 ---
 
 ## 12. Limitações Conhecidas e Divergências Arquiteturais
 
-1. **Camada Domain Incompleta:** Dos 22 arquivos planejados em `packages/domain/src/`, apenas 1 está implementado (`shared/domain-error.ts`). Os demais 21 contêm apenas o planejamento em comentários estruturados.
+1. **Camada Domain Concluída e Homologada (M1, M2 e M2.1):** Todos os 6 módulos operacionais do domínio (`shared`, `seasons`, `participants`, `events`, `scoring`, `championships`), seus validadores transversais (`season-event-validator.ts` e `session-participant-validator.ts`) e 8 suítes de testes de integração estão 100% implementados e validados por 459 testes automatizados com 100% de Mutation Score. Apenas o submódulo `simulations` permanece como planejado para milestones futuros.
 2. **Ausência de Endpoints de Negócio na API:** A API NestJS possui scaffold funcional e persistência configurada, mas nenhum controller ou caso de uso esportivo foi implementado ainda.
 3. **Frontend Inexistente:** `apps/web` não possui arquivos de código ou dependências instaladas.
 4. **Gates em Estado SKIP Legítimo:**

@@ -83,6 +83,7 @@ export type DomainErrorCode = (typeof DomainErrorCode)[keyof typeof DomainErrorC
  * identificação semântica via código único e suporte a metadados de contexto imutáveis.
  */
 export class DomainError extends Error {
+  declare readonly message: string;
   readonly code: string;
   readonly context?: DomainErrorContext;
 
